@@ -23,4 +23,5 @@ repos:
         args:
           - --enable=warning,performance,portability
           - --inline-suppr
+          - --language=c++
         files: \.(c|cpp|h|hpp)$
