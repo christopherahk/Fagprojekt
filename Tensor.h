@@ -18,9 +18,13 @@ struct Tensor {
 
   // Operators
   float& operator()(int row, int col);
+  float operator()(int row, int col) const;
   Tensor operator+(const Tensor& B);
+  Tensor operator-(const Tensor& B);
   Tensor& operator=(const Tensor& B);
 
   Tensor matmul(const Tensor& B);  // Matrix multiplication
   Tensor transpose();              // Transpose tensor.
+  int size() const;                   // Get the number of entries in the matrix
+  int getrow() const;                    // Get the lenght of the tensor
 };
