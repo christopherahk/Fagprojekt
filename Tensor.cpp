@@ -53,6 +53,11 @@ float& Tensor::operator()(int row, int col) {
   return data[row * cols + col];
 }
 
+float Tensor::operator()(int row, int col) const {
+  // Since the data is flattened, this is how we access each index.
+  return data[row * cols + col];
+}
+
 Tensor Tensor::operator+(const Tensor& B) {
   // Tensor addition. First, an empty tensor is constructed.
   Tensor C(rows, cols);
@@ -62,6 +67,21 @@ Tensor Tensor::operator+(const Tensor& B) {
       int index = r * cols + c;
       // Row by row, column by column, add the indices in the tensors.
       C.data[index] = data[index] + B.data[index];
+    }
+  }
+
+  return C;
+}
+
+Tensor Tensor::operator-(const Tensor& B) {
+  // Tensor subtraction. First, an empty tensor is constructed.
+  Tensor C(rows, cols);
+
+  for (int r = 0; r < rows; r++) {
+    for (int c = 0; c < cols; c++) {
+      int index = r * cols + c;
+      // Row by row, column by column, subtracts the indices in the tensors.
+      C.data[index] = data[index] - B.data[index];
     }
   }
 
@@ -108,4 +128,18 @@ Tensor Tensor::transpose() {
   }
 
   return B;
+}
+
+int Tensor::size() const {
+
+  // Get the size of a tensor, i.e how many entries
+
+  return rows * cols;
+}
+
+int Tensor::getrow() const {
+
+  // Get the lenght of a tensor
+
+  return rows;
 }
