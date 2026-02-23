@@ -1,22 +1,29 @@
 #include "Tensor.h"
-#include <algorithm>
 #include <Arduino.h>
+#include <algorithm>
 #include <string>
 
-Tensor::Tensor(const float* data_, int rows_, int cols_)
-  : rows(rows_), cols(cols_) {
-  // Initializes the data with the specified size and fills the values from the input data.
+Tensor::Tensor(const float *data_, int rows_, int cols_)
+    : rows(rows_), cols(cols_) {
+  // Initializes the data with the specified size and fills the values from the
+  // input data.
   int size = rows * cols;
   data = new float[size];
   fill(data_);
 }
 
-Tensor::Tensor(int rows_, int cols_)
-  : rows(rows_), cols(cols_) {
+Tensor::Tensor(int rows_, int cols_) : rows(rows_), cols(cols_) {
   /* Constructs a tensor without setting the data values.
   Used for when we just need an empty tensor we will fill later. */
   int size = rows * cols;
   data = new float[size];
+}
+
+Tensor::Tensor(const Tensor &other) : rows(other.rows), cols(other.cols) {
+  // Copy constructor - deep copies the data array.
+  int size = rows * cols;
+  data = new float[size];
+  std::copy(other.data, other.data + size, data);
 }
 
 Tensor::~Tensor() {
@@ -24,7 +31,7 @@ Tensor::~Tensor() {
   delete[] data;
 }
 
-void Tensor::fill(const float* values) {
+void Tensor::fill(const float *values) {
   // Fills the values by making a copy.
   if (values != nullptr) {
     std::copy(values, values + (rows * cols), data);
@@ -48,7 +55,7 @@ void Tensor::printTensor() {
   }
 }
 
-float& Tensor::operator()(int row, int col) {
+float &Tensor::operator()(int row, int col) {
   // Since the data is flattened, this is how we access each index.
   return data[row * cols + col];
 }
@@ -58,7 +65,7 @@ float Tensor::operator()(int row, int col) const {
   return data[row * cols + col];
 }
 
-Tensor Tensor::operator+(const Tensor& B) {
+Tensor Tensor::operator+(const Tensor &B) {
   // Tensor addition. First, an empty tensor is constructed.
   Tensor C(rows, cols);
 
@@ -73,7 +80,7 @@ Tensor Tensor::operator+(const Tensor& B) {
   return C;
 }
 
-Tensor Tensor::operator-(const Tensor& B) {
+Tensor Tensor::operator-(const Tensor &B) {
   // Tensor subtraction. First, an empty tensor is constructed.
   Tensor C(rows, cols);
 
@@ -88,7 +95,7 @@ Tensor Tensor::operator-(const Tensor& B) {
   return C;
 }
 
-Tensor& Tensor::operator=(const Tensor& B) {
+Tensor &Tensor::operator=(const Tensor &B) {
   // Assigment operator for setting tensors to each other.
   data = B.data;
   rows = B.rows;
@@ -97,7 +104,7 @@ Tensor& Tensor::operator=(const Tensor& B) {
   return *this;
 }
 
-Tensor Tensor::matmul(const Tensor& B) {
+Tensor Tensor::matmul(const Tensor &B) {
   /* Matrix multiplication. Constructs an empty tensor, makes the basic
   algorithm for multiplication, then returns the resulting tensor. */
   Tensor C(rows, B.cols);
