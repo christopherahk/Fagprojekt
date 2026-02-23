@@ -30,3 +30,28 @@
 *.exe
 *.out
 *.app
+
+# PlatformIO folders
+.pio
+.pioenvs
+.piolibdeps
+
+# VS Code folders (Personal settings)
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Python cache (if you use uv/pre-commit)
+__pycache__/
+.python-version
+.venv/
+
+# Operating system files
+.DS_Store
+thumbs.db
+
+# Other files
+compile_commands.json
+
+# pre commit
+.pre-commit-config.yaml
