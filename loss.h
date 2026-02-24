@@ -1,3 +1,6 @@
 #include "Tensor.h"
 
-float computeMSEClassLoss(const Tensor &True_vals, const Tensor &Pred_vals);
+struct Loss {
+  float calculate(const Tensor& output, const Tensor& yTrue);
+  virtual Tensor forward(const Tensor& yPred, const Tensor& yTrue) = 0;
+};
