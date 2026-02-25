@@ -233,6 +233,8 @@ Tensor Tensor::applyMax() const {
     int max = this->argmaxRow(r);
     C(r, 0) = max;
   }
+
+  return C;
 }
 
 Tensor Tensor::addMatAndVec(const Tensor& vec) const {

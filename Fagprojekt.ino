@@ -5,7 +5,7 @@
 #include "SGD.h"
 #include <algorithm>
 
-float* oneHot(Tensor& batchY, int row, int label, int nClasses) {
+void oneHot(Tensor& batchY, int row, int label, int nClasses) {
   for (int c = 0; c < nClasses; c++) {
     batchY(row, c) = 0.0f;
   }
