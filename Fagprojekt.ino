@@ -1,11 +1,11 @@
-#include "Tensor.h"
+#include "Activation_Sofmax_CategoricalCrossEntropy.h"
 #include "NNLayer.h"
 #include "ReLU.h"
-#include "Activation_Sofmax_CategoricalCrossEntropy.h"
 #include "SGD.h"
+#include "Tensor.h"
 #include <algorithm>
 
-void oneHot(Tensor& batchY, int row, int label, int nClasses) {
+void oneHot(Tensor &batchY, int row, int label, int nClasses) {
   for (int c = 0; c < nClasses; c++) {
     batchY(row, c) = 0.0f;
   }
@@ -13,16 +13,9 @@ void oneHot(Tensor& batchY, int row, int label, int nClasses) {
   batchY(row, label) = 1.0f;
 }
 
-void copyBatch(
-  const float* train_data,
-  const float* train_labels,
-  int startIndex,
-  Tensor& batchX,
-  Tensor& batchY,
-  int nInputs,
-  int nClasses,
-  int batchSize)
-{
+void copyBatch(const float *train_data, const float *train_labels,
+               int startIndex, Tensor &batchX, Tensor &batchY, int nInputs,
+               int nClasses, int batchSize) {
   for (int i = 0; i < batchSize; i++) {
     for (int j = 0; j < nInputs; j++) {
       batchX(i, j) = train_data[startIndex + i];
@@ -35,7 +28,8 @@ void copyBatch(
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial)
+    ;
 
   randomSeed(analogRead(A0));
 
@@ -70,14 +64,15 @@ void setup() {
 
     for (int batch = 0; batch < numBatches; batch++) {
       Serial.print("Doing batch number: ");
-      Serial.print(batch);
+      Serial.print(batch + 1);
       Serial.print("/");
       Serial.print(numBatches);
       Serial.print(" | Epoch: ");
       Serial.println(epoch);
 
       int startIndex = batch * BATCH_SIZE;
-      copyBatch(train_data, train_labels, startIndex, batchX, batchY, N_INPUTS, N_CLASSES, BATCH_SIZE);
+      copyBatch(train_data, train_labels, startIndex, batchX, batchY, N_INPUTS,
+                N_CLASSES, BATCH_SIZE);
 
       layer1.forward(batchX);
       relu.forward(layer1.output);
