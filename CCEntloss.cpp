@@ -3,25 +3,25 @@
 #include <cmath>
 
 float computeCCEntropyLoss(const Tensor &True_vals, const Tensor &Pred_vals) {
-  // An implementation of categorical cross entropy loss for classification.
-  int N = True_vals.size(); // total entries in the tensor i.e. "N"
+  int rows = True_vals.rows; // # samples
+  int cols = Pred_vals.cols; // # classes
 
-  // check if tensors are of same size
-
-  if (N != Pred_vals.size()) {
+  if (rows != Pred_vals.rows) {
+    // error handling
   }
 
   float sum = 0.0f;
 
-  // compute -yi log(yhat)
+  for (int i = 0; i < rows; ++i) {
 
-  for (int i = 0; i < N; ++i) {
-    float y_true = True_vals(i, 0);
-    float y_pred = Pred_vals(i, 0);
-    sum += -y_true *
-           std::log(y_pred + 1e-15f); // Adding a small value to prevent log(0)
+    int true_class = static_cast<int>(True_vals(i, 0));
+    float y_pred = Pred_vals(i, true_class);
+
+    if (y_pred < 1e-15f)
+      y_pred = 1e-15f;
+
+    sum += -std::log(y_pred);
   }
 
-  // Sum/N, static cast N(int) -> N(float)
-  return sum / static_cast<float>(N);
+  return sum / static_cast<float>(rows);
 }
