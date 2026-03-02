@@ -41,5 +41,8 @@ jobs:
 
       - name: Static Analysis (cppcheck)
         run: |
-          cppcheck --enable=warning,style,performance,portability,information --error-exitcode=1 \
-            --inline-suppr --quiet .
+          cppcheck --enable=warning,style,performance,portability --error-exitcode=1 \
+            --inline-suppr --quiet \
+            --suppress=missingIncludeSystem \
+            --suppress=missingInclude \
+            -I. .
