@@ -12,3 +12,5 @@ public:
 
   virtual ~Loss() = default;
 };
+
+// ligegyldig kommentar
