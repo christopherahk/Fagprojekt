@@ -31,8 +31,7 @@ struct Tensor {
   // Matrix operations
   Tensor matmul(const Tensor &B) const; // Matrix multiplication
   Tensor transpose() const;             // Transpose tensor.
-  template<typename Func>
-  Tensor applyElementWise(Func f) const {
+  template <typename Func> Tensor applyElementWise(Func f) const {
     Tensor B(rows, cols);
 
     for (int r = 0; r < rows; r++) {
@@ -46,9 +45,9 @@ struct Tensor {
   Tensor sumRows() const;
   float mean() const;
   Tensor clip(float minValue, float maxValue) const;
-  Tensor selectTrueClass(const Tensor& B) const;
+  Tensor selectTrueClass(const Tensor &B) const;
   int argmaxRow(int row) const;
   Tensor applyMax() const;
-  Tensor addMatAndVec(const Tensor& B) const;
-  Tensor matDivVecRows(const Tensor& vec) const;
+  Tensor addMatAndVec(const Tensor &B) const;
+  Tensor matDivVecRows(const Tensor &vec) const;
 };

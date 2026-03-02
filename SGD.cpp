@@ -1,8 +1,7 @@
 #include "SGD.h"
 #include "NNLayer.h"
 
-SGD::SGD(float lr = 0.001)
-  : learningRate(lr) {}
+SGD::SGD(float lr = 0.001) : learningRate(lr) {}
 
 void SGD::updateParameters(NNLayer layer) {
   for (int i = 0; i < layer.nInputs; i++) {

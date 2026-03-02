@@ -17,10 +17,10 @@ struct NNLayer {
   Tensor inputs;
 
   NNLayer(int inputs_, int neurons, int batchSize);
-    
+
   void initWeights();
   void initBiases();
 
-  void forward(const Tensor& inputs_);
-  void backward(const Tensor& dValues);
+  void forward(const Tensor &inputs_);
+  void backward(const Tensor &dValues);
 };

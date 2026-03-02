@@ -1,23 +1,16 @@
-#include "Tensor.h"
 #include "NNLayer.h"
+#include "Tensor.h"
 #include <Arduino.h>
 #include <cmath>
 
-NNLayer::NNLayer(int inputs_, int neurons, int batchSize) 
-  : nInputs(inputs_),
-    nNeurons(neurons),
-    nBatchSize(batchSize),
-    weights(inputs_, neurons),
-    biases(1, neurons),
-    output(batchSize, neurons),
-    dWeights(inputs_, neurons),
-    dBiases(1, neurons),
-    dInputs(batchSize, inputs_),
-    inputs(batchSize, inputs_)
-    {
-        initWeights();
-        initBiases();
-    }
+NNLayer::NNLayer(int inputs_, int neurons, int batchSize)
+    : nInputs(inputs_), nNeurons(neurons), nBatchSize(batchSize),
+      weights(inputs_, neurons), biases(1, neurons), output(batchSize, neurons),
+      dWeights(inputs_, neurons), dBiases(1, neurons),
+      dInputs(batchSize, inputs_), inputs(batchSize, inputs_) {
+  initWeights();
+  initBiases();
+}
 
 void NNLayer::initWeights() {
   float scale = 1.0f / sqrtf((float)nInputs);
@@ -36,11 +29,11 @@ void NNLayer::initBiases() {
   }
 }
 
-void NNLayer::forward(const Tensor& inputs_) {
+void NNLayer::forward(const Tensor &inputs_) {
   inputs = inputs_;
-  
+
   output = inputs.matmul(weights);
-  
+
   for (int r = 0; r < output.rows; r++) {
     for (int c = 0; c < output.cols; c++) {
       output(r, c) += biases(0, c);
@@ -48,7 +41,7 @@ void NNLayer::forward(const Tensor& inputs_) {
   }
 }
 
-void NNLayer::backward(const Tensor& dValues) {
+void NNLayer::backward(const Tensor &dValues) {
   Tensor inputsT = inputs.transpose();
   dWeights = inputsT.matmul(dValues);
 

@@ -1,6 +1,6 @@
 #pragma once
-#include "Softmax.h"
 #include "CategoricalCrossEntropyLoss.h"
+#include "Softmax.h"
 
 struct Activation_Sofmax_CategoricalCrossEntropy {
   Softmax activation;
@@ -8,6 +8,6 @@ struct Activation_Sofmax_CategoricalCrossEntropy {
 
   Tensor dInputs;
 
-  float forward(const Tensor& yPred, const Tensor& yTrue);
-  void backward(const Tensor& yTrue);
+  float forward(const Tensor &yPred, const Tensor &yTrue);
+  void backward(const Tensor &yTrue);
 };

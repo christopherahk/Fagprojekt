@@ -1,12 +1,13 @@
 #include "Activation_Sofmax_CategoricalCrossEntropy.h"
 
-float Activation_Sofmax_CategoricalCrossEntropy::forward(const Tensor& yPred, const Tensor& yTrue) {
+float Activation_Sofmax_CategoricalCrossEntropy::forward(const Tensor &yPred,
+                                                         const Tensor &yTrue) {
   activation.forward(yPred);
 
   return loss.calculate(activation.output, yTrue);
 }
 
-void Activation_Sofmax_CategoricalCrossEntropy::backward(const Tensor& yTrue) {
+void Activation_Sofmax_CategoricalCrossEntropy::backward(const Tensor &yTrue) {
   dInputs = activation.output;
 
   for (int i = 0; i < yTrue.rows; i++) {
@@ -15,6 +16,6 @@ void Activation_Sofmax_CategoricalCrossEntropy::backward(const Tensor& yTrue) {
     }
   }
 
-  auto normalizeFunc = [=](const float& x) -> float { return x / yTrue.rows; };
+  auto normalizeFunc = [=](const float &x) -> float { return x / yTrue.rows; };
   dInputs = dInputs.applyElementWise(normalizeFunc);
 }

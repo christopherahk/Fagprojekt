@@ -6,6 +6,6 @@ struct ReLU {
   Tensor dInputs;
   Tensor inputs;
 
-  void forward(const Tensor& inputs);
-  void backward(const Tensor& dValues);
+  void forward(const Tensor &inputs);
+  void backward(const Tensor &dValues);
 };

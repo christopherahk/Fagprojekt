@@ -4,5 +4,5 @@
 struct Softmax {
   Tensor output;
 
-  void forward(const Tensor& inputs);
+  void forward(const Tensor &inputs);
 };
