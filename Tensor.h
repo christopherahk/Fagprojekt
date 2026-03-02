@@ -26,7 +26,8 @@ struct Tensor {
   float operator()(int row, int col) const;
   Tensor operator+(const Tensor &B);
   Tensor operator-(const Tensor &B);
-  Tensor &operator=(const Tensor &B);
+  Tensor &operator=(Tensor B);
+  void swap(Tensor &B); // Swap function for = operator
 
   // Matrix operations
   Tensor matmul(const Tensor &B) const; // Matrix multiplication
@@ -50,4 +51,8 @@ struct Tensor {
   Tensor applyMax() const;
   Tensor addMatAndVec(const Tensor &B) const;
   Tensor matDivVecRows(const Tensor &vec) const;
+  Tensor operator*(float scalar) const;
+  friend Tensor operator*(float scalar, const Tensor &T);
+  Tensor element_wise_multiply(const Tensor &B);
+  void apply(float (*func)(float));
 };

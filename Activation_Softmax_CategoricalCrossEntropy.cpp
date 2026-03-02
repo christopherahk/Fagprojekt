@@ -1,13 +1,13 @@
-#include "Activation_Sofmax_CategoricalCrossEntropy.h"
+#include "Activation_Softmax_CategoricalCrossEntropy.h"
 
-float Activation_Sofmax_CategoricalCrossEntropy::forward(const Tensor &yPred,
-                                                         const Tensor &yTrue) {
+float Activation_Softmax_CategoricalCrossEntropy::forward(const Tensor &yPred,
+                                                          const Tensor &yTrue) {
   activation.forward(yPred);
 
   return loss.calculate(activation.output, yTrue);
 }
 
-void Activation_Sofmax_CategoricalCrossEntropy::backward(const Tensor &yTrue) {
+void Activation_Softmax_CategoricalCrossEntropy::backward(const Tensor &yTrue) {
   dInputs = activation.output;
 
   for (int i = 0; i < yTrue.rows; i++) {
