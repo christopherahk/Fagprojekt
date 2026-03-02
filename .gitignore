@@ -56,7 +56,5 @@ compile_commands.json
 # pre commit
 .pre-commit-config.yaml
 
-
-#folders
-
+# Folders
 data/

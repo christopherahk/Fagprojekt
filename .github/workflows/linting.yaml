@@ -5,9 +5,13 @@ on: [push, pull_request]
 jobs:
   style-and-logic:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
+      # -------------------------
+      # Clang Format
+      # -------------------------
       - name: Install Clang-Format
         run: sudo apt-get update && sudo apt-get install -y clang-format
 
@@ -16,14 +20,28 @@ jobs:
           find src include test -type f \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" \) \
             -print0 | xargs -0 clang-format --dry-run --Werror
 
+      # -------------------------
+      # Install Arduino CLI
+      # -------------------------
+      - name: Install Arduino CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          sudo mv bin/arduino-cli /usr/local/bin/
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Update Arduino Index
+        run: arduino-cli core update-index
 
-      - name: Install PlatformIO
-        run: python3 -m pip install --upgrade pip platformio
+      # -------------------------
+      # Install Nano 33 BLE core
+      # -------------------------
+      - name: Install Arduino Mbed Nano core
+        run: arduino-cli core install arduino:mbed_nano
 
-      - name: Static Analysis (Clang-Tidy via PIO)
-        run: pio check -e native
+      # -------------------------
+      # Compile Sketch
+      # -------------------------
+      - name: Compile Arduino Sketch
+        run: |
+          arduino-cli compile \
+            --fqbn arduino:mbed_nano:nano33ble \
+            .
