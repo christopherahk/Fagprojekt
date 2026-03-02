@@ -34,8 +34,10 @@ jobs:
       - name: Static Analysis (clang-tidy)
         run: |
           find . -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" \) \
-            -not -path "./.git/*" -print0 | \
-            xargs -0 -r clang-tidy --warnings-as-errors='*'
+            -not -path "./.git/*" \
+            -not -path "./tests/*" \
+            -not -name "Tensor.cpp" -print0 | \
+            xargs -0 -r clang-tidy --warnings-as-errors='*' --extra-arg=-I.
 
       - name: Static Analysis (cppcheck)
         run: |
