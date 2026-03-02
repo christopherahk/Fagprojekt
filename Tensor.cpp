@@ -4,7 +4,7 @@
 #include <string>
 
 Tensor::Tensor(const float *data_, int rows_, int cols_)
-  : rows(rows_), cols(cols_), size(rows_ * cols_) {
+    : rows(rows_), cols(cols_), size(rows_ * cols_) {
   // Initializes the data with the specified size and fills the values from the
   // input data.
   data = new float[size];
@@ -12,21 +12,20 @@ Tensor::Tensor(const float *data_, int rows_, int cols_)
 }
 
 Tensor::Tensor(int rows_, int cols_)
-: rows(rows_), cols(cols_), size(rows_ * cols_) {
+    : rows(rows_), cols(cols_), size(rows_ * cols_) {
   /* Constructs a tensor without setting the data values.
   Used for when we just need an empty tensor we will fill later. */
   data = new float[size];
 }
 
 Tensor::Tensor(const Tensor &other)
-  : rows(other.rows), cols(other.cols), size(other.rows * other.cols) {
+    : rows(other.rows), cols(other.cols), size(other.rows * other.cols) {
   // Copy constructor - deep copies the data array.
   data = new float[size];
   std::copy(other.data, other.data + size, data);
 }
 
-Tensor::Tensor()
-  : rows(0), cols(0), size(0), data(nullptr) {}
+Tensor::Tensor() : rows(0), cols(0), size(0), data(nullptr) {}
 
 Tensor::~Tensor() {
   // Destructor - for freeing up memory allocated for the data.
@@ -149,8 +148,10 @@ Tensor Tensor::transpose() const {
 }
 
 Tensor Tensor::sumRows() const {
+  // Sums the rows of the tensor and returns a new tensor with one row and the
+  // same number of columns.
   Tensor C(1, cols);
-  
+
   for (int c = 0; c < cols; c++) {
     float sum = 0.0f;
 
@@ -165,7 +166,13 @@ Tensor Tensor::sumRows() const {
 }
 
 float Tensor::mean() const {
+  // Computes the mean of all the values in the tensor by summing them and
+  // dividing by the size of the tensor.
   float result = 0.0f;
+
+  if (size == 0) {
+    return result; // Avoid division by zero.
+  }
 
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
@@ -179,26 +186,33 @@ float Tensor::mean() const {
 Tensor Tensor::clip(float minValue, float maxValue) const {
   Tensor C(rows, cols);
 
+  // Clips the values in the tensor to be within the specified min and max
+  // values.
+
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
       float x = this->operator()(r, c);
 
       if (x < minValue) {
         x = minValue;
-      }
-      else if (x > maxValue) {
+      } else if (x > maxValue) {
         x = maxValue;
       }
 
       C(r, c) = x;
     }
   }
-  
+
   return C;
 }
 
-Tensor Tensor::selectTrueClass(const Tensor& B) const {
+Tensor Tensor::selectTrueClass(const Tensor &B) const {
   Tensor C(rows, 1);
+
+  // onehot encoded B is used to select the predicted confidence for the true
+  // class in each row of the tensor. For each row, we check which column has a
+  // 1 in the onehot encoded B, and we select the corresponding value from the
+  // original tensor. Returns an (N x 1) column vector containing these values.
 
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
@@ -213,6 +227,10 @@ Tensor Tensor::selectTrueClass(const Tensor& B) const {
 }
 
 int Tensor::argmaxRow(int row) const {
+  // Finds the column index of the maximum value in a given row.
+  // This is used in the accuracy calculation to find the predicted class for
+  // each row.
+
   int colMax = 0;
   float maxVal = this->operator()(row, 0);
 
@@ -228,6 +246,9 @@ int Tensor::argmaxRow(int row) const {
 
 Tensor Tensor::applyMax() const {
   Tensor C(rows, 1);
+  // For each row, finds the column index of the maximum value and stores it in
+  // a new tensor with one column. This is used in the accuracy calculation to
+  // find the predicted class for each row.
 
   for (int r = 0; r < rows; r++) {
     int max = this->argmaxRow(r);
@@ -237,8 +258,12 @@ Tensor Tensor::applyMax() const {
   return C;
 }
 
-Tensor Tensor::addMatAndVec(const Tensor& vec) const {
+Tensor Tensor::addMatAndVec(const Tensor &vec) const {
   Tensor C(rows, cols);
+  // Adds a vector to each row of the tensor. The vector is expected to have the
+  // same number of columns as the tensor and one row. This is used in the
+  // forward pass of the dense layer to add the bias vector to the result of the
+  // matrix multiplication.
 
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
@@ -249,8 +274,12 @@ Tensor Tensor::addMatAndVec(const Tensor& vec) const {
   return C;
 }
 
-Tensor Tensor::matDivVecRows(const Tensor& vec) const {
+Tensor Tensor::matDivVecRows(const Tensor &vec) const {
   Tensor C(rows, cols);
+  // Similar to addMatAndVec, but divides each row of the tensor by the
+  // corresponding value in the vector. The vector is expected to have the same
+  // number of rows as the tensor and one column. This is used in the backward
+  // pass of the dense layer to divide the gradients by the batch size.
 
   for (int r = 0; r < rows; r++) {
     for (int c = 0; c < cols; c++) {
