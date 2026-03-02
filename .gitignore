@@ -56,3 +56,6 @@ data/*
 
 # pre commit
 .pre-commit-config.yaml
+
+# Folders
+data/

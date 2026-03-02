@@ -5,9 +5,13 @@ on: [push, pull_request]
 jobs:
   style-and-logic:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
+      # -------------------------
+      # Clang Format
+      # -------------------------
       - name: Install Clang-Format
         run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy cppcheck
 
@@ -19,13 +23,13 @@ jobs:
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v2
 
-      - name: Install Arduino AVR Core
+      - name: Install Arduino Mbed Nano core
         run: |
           arduino-cli core update-index
-          arduino-cli core install arduino:avr
+          arduino-cli core install arduino:mbed_nano
 
       - name: Compile Sketch (Arduino CLI)
-        run: arduino-cli compile --fqbn arduino:avr:uno Fagprojekt.ino
+        run: arduino-cli compile --fqbn arduino:mbed_nano:nano33ble .
 
       - name: Static Analysis (clang-tidy)
         run: |
