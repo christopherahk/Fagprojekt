@@ -25,10 +25,17 @@ struct Tensor {
   float operator()(int row, int col) const;
   Tensor operator+(const Tensor &B);
   Tensor operator-(const Tensor &B);
-  Tensor &operator=(const Tensor &B);
+  Tensor &operator=(const Tensor B);
+  void swap(Tensor &B); // Swap function for = operator
 
   Tensor matmul(const Tensor &B); // Matrix multiplication
   Tensor transpose();             // Transpose tensor.
   int size() const;               // Get the number of entries in the matrix
-  int getrow() const;             // Get the lenght of the tensor
+  int getrow() const;             // Get the length of the tensor
+
+  Tensor operator*(float scalar) const;
+  friend Tensor operator*(float scalar, const Tensor &T);
+
+  void
+  apply(float (*func)(float)); // apply a function to each element of the tensor
 };

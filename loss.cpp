@@ -5,6 +5,10 @@ float computeMSEClassLoss(const Tensor &True_vals, const Tensor &Pred_vals) {
 
   // An implementation of MSE multiclass loss function. Not suited for
   // classification but will be used for testing
+  if (True_vals.rows != Pred_vals.rows || True_vals.cols != Pred_vals.cols) {
+    return 0.0f; // error handling for mismatched tensor sizes, return 0.0f or
+                 // handle as needed
+  }
   int N = True_vals.size(); // total entries in the tensor i.e. "N"
 
   // check if tensors are of same size

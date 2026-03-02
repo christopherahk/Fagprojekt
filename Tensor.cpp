@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <algorithm>
 #include <string>
+#include <utility> // used for std::swap
 
 Tensor::Tensor(const float *data_, int rows_, int cols_)
     : rows(rows_), cols(cols_) {
@@ -95,18 +96,37 @@ Tensor Tensor::operator-(const Tensor &B) {
   return C;
 }
 
-Tensor &Tensor::operator=(const Tensor &B) {
-  // Assigment operator for setting tensors to each other.
-  data = B.data;
-  rows = B.rows;
-  cols = B.cols;
+void Tensor::swap(Tensor &B) {
+  // Swap function for the copy and swap idiom.
+  std::swap(rows, B.rows); //
+  std::swap(cols, B.cols);
+  std::swap(data, B.data);
+}
 
-  return *this;
+Tensor &Tensor::operator=(Tensor B) { // copy
+  swap(B);                            // swap internal data
+  return *this;                       // return the modified tensor
 }
 
 Tensor Tensor::matmul(const Tensor &B) {
   /* Matrix multiplication. Constructs an empty tensor, makes the basic
   algorithm for multiplication, then returns the resulting tensor. */
+
+  if (cols != B.rows) {
+    // Handle error for incompatible dimensions, return an empty tensor or
+    // handle as needed
+    Serial.println("Error: Incompatible dimensions for matrix multiplication.");
+    Serial.print("Tensor A dimensions: ");
+    Serial.print(rows);
+    Serial.print("x");
+    Serial.println(cols);
+    Serial.print("Tensor B dimensions: ");
+    Serial.print(B.rows);
+    Serial.print("x");
+    Serial.println(B.cols);
+    return Tensor(0, 0); // Return an empty tensor to indicate an error
+  }
+
   Tensor C(rows, B.cols);
 
   for (int i = 0; i < rows; i++) {
@@ -149,4 +169,59 @@ int Tensor::getrow() const {
   // Get the lenght of a tensor
 
   return rows;
+}
+
+Tensor Tensor::operator*(float scalar) { // scalar multiplication
+  Tensor C(rows, cols) int n = rows * cols;
+  for (int i = 0; i < n; i++) {
+    C.data[i] = data[i] * scalar;
+  }
+  return C;
+}
+
+Tensor operator*(float scalar, const Tensor &A) {
+  return A * scalar; // Reuse the member operator* for scalar multiplication
+}
+
+Tensor Tensor::element_wise_multiply(const Tensor &B) {
+  // Element-wise multiplication. Constructs an empty tensor, makes the basic
+  // algorithm for element-wise multiplication, then returns the resulting
+  // tensor.
+
+  if (rows != B.rows || cols != B.cols) {
+    // Handle error for incompatible dimensions, return an empty tensor or
+    // handle as needed
+    Serial.println(
+        "Error: Incompatible dimensions for element-wise multiplication.");
+    Serial.print("Tensor A dimensions: ");
+    Serial.print(rows);
+    Serial.print("x");
+    Serial.println(cols);
+    Serial.print("Tensor B dimensions: ");
+    Serial.print(B.rows);
+    Serial.print("x");
+    Serial.println(B.cols);
+    return Tensor(0, 0); // Return an empty tensor to indicate an error
+  }
+
+  Tensor C(rows, cols);
+
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      C(i, j) = this->operator()(i, j) * B(i, j); // Element-wise multiplication
+    }
+  }
+
+  return C;
+}
+
+void Tensor::apply(
+    float (*func)(float)) { // apply a function to each element of the tensor
+  if (func == nullptr)
+    return; // Handle null function pointer, do nothing or handle as needed
+
+  int n = rows * cols;          // Total number of elements in the tensor
+  for (int i = 0; i < n; ++i) { // fricking for loop
+    data[i] = func(data[i]); // Apply the function to each element of the tensor
+  }
 }
