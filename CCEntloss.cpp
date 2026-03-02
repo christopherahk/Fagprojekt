@@ -5,22 +5,22 @@
 float computeCCEntropyLossOneHot(const Tensor &True_onehot,
                                  const Tensor &Pred_vals) {
   int rows = Pred_vals.rows;
-  int cols = Pred_vals.cols; // Antal klasser
+  int cols = Pred_vals.cols; // num classes
   float total_loss = 0.0f;
   const float epsilon = 1e-7f;
 
   for (int i = 0; i < rows; ++i) {
     int true_class = -1;
 
-    // Find hvilken kolonne der har 1-tallet (One-Hot søgning)
+    // One-Hot search
     for (int j = 0; j < cols; ++j) {
-      if (True_onehot(i, j) > 0.9f) { // Vi tjekker > 0.9 pga. float-præcision
+      if (True_onehot(i, j) > 0.9f) {
         true_class = j;
-        break; // Stop søgningen, når vi har fundet 1-tallet
+        break;
       }
     }
 
-    // Sikkerhedstjek: Hvis ingen klasse var markeret med 1
+    // Safety check
     if (true_class == -1)
       continue;
 
