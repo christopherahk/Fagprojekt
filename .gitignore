@@ -52,9 +52,10 @@ thumbs.db
 
 # Other files
 compile_commands.json
+data/*
 
 # pre commit
 .pre-commit-config.yaml
 
-#folders
+# Folders
 data/
