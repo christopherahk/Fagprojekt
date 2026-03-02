@@ -1,8 +1,8 @@
 #pragma once
+#include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
-#include "Softmax.h"
 
-struct Activation_Sofmax_CategoricalCrossEntropy {
+struct Activation_Softmax_CategoricalCrossEntropy {
   Softmax activation;
   CategoricalCrossEntropyLoss loss;
 
