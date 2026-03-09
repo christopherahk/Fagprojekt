@@ -5,25 +5,44 @@ on: [push, pull_request]
 jobs:
   style-and-logic:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
+      # -------------------------
+      # Clang Format
+      # -------------------------
       - name: Install Clang-Format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy cppcheck
 
       - name: Check Formatting
         run: |
           find src include test -type f \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" \) \
             -print0 | xargs -0 clang-format --dry-run --Werror
 
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Install Arduino Mbed Nano core
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:mbed_nano
 
-      - name: Install PlatformIO
-        run: python3 -m pip install --upgrade pip platformio
+      - name: Compile Sketch (Arduino CLI)
+        run: arduino-cli compile --fqbn arduino:mbed_nano:nano33ble .
 
-      - name: Static Analysis (Clang-Tidy via PIO)
-        run: pio check -e native
+      - name: Static Analysis (clang-tidy)
+        run: |
+          find . -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" \) \
+            -not -path "./.git/*" \
+            -not -path "./tests/*" \
+            -not -name "Tensor.cpp" -print0 | \
+            xargs -0 -r clang-tidy --warnings-as-errors='*' --extra-arg=-I.
+
+      - name: Static Analysis (cppcheck)
+        run: |
+          cppcheck --enable=warning,style,performance,portability --error-exitcode=1 \
+            --inline-suppr --quiet \
+            --suppress=missingIncludeSystem \
+            --suppress=missingInclude \
+            -I. .
