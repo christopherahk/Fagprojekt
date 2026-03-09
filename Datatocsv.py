@@ -9,7 +9,7 @@ OUTPUT_FOLDER = "data2"
 
 DOWNSAMPLE = 100
 
-check = True
+check = False
 
 for root, dirs, files in os.walk(INPUT_FOLDER):
 
@@ -64,18 +64,18 @@ for root, dirs, files in os.walk(INPUT_FOLDER):
             output_file,
             features,
             delimiter=",")
-    else:
+        else:
         # downsample
-        downsampled = decimate(traces, DOWNSAMPLE, axis=0)
-        downsampled = downsampled.astype(np.float32) # konverter til float32 for at spare plads, kan også bruge int16 hvis nødvendigt
+            downsampled = decimate(traces, DOWNSAMPLE, axis=0)
+            downsampled = downsampled.astype(np.float32) # konverter til float32 for at spare plads, kan også bruge int16 hvis nødvendigt
 
-        new_fs = fs / DOWNSAMPLE
-        print("New sampling rate:", new_fs)
+            new_fs = fs / DOWNSAMPLE
+            print("New sampling rate:", new_fs)
 
         # gem som CSV
-        np.savetxt(
+            np.savetxt(
             output_file,
             downsampled,
             delimiter=","
-        )
+            )
         print("Saved:", output_file)
