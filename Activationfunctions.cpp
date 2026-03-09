@@ -1,3 +1,4 @@
+#include "Tensor.h"
 #include <cmath>
 
 // Sigmoid activationfunction and derivative
