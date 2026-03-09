@@ -35,7 +35,7 @@ import spikeinterface.extractors as se
 
 #RHD2000 amplifier is the chip used
 
-r=se.read_intan(r'data/RAT3_PRICKING/pricking_170227_133227.rhd', stream_id='0')
+r=se.read_intan(r'data/RAT3_PRICKING/pricking_170227_133227.rhd', stream_id="0")
 n=r.get_num_samples(); fs=r.get_sampling_frequency()
 print('duration_s=', n/fs); print('num_channels=', r.get_num_channels())
 print('channel_ids=', r.get_channel_ids())
@@ -49,3 +49,4 @@ r=neo.rawio.IntanRawIO(filename=p); r.parse_header()
 print('signal_streams=', r.header['signal_streams'])
 print('event_channels=', r.header['event_channels'])
 print('signal_channels(sample)=', r.header['signal_channels'][:12])
+print("===="*50 + "\n" "traces = " + r.get_traces()  + "\n" + "===="*50)

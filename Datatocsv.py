@@ -1,28 +1,81 @@
-import time
+import os
+import numpy as np
+import tqdm
+import spikeinterface.extractors as se
+from scipy.signal import decimate
 
-effective_fs = fs / DOWNSAMPLE          # ny sampling rate
-dt = 1.0 / effective_fs                 # tid mellem samples
+INPUT_FOLDER = "data"
+OUTPUT_FOLDER = "data2"
 
-N = 100                                 # hvor mange linjer vi vil lave
-N = min(N, downsampled.shape[0])        # sikkerhed hvis filen er kort
+DOWNSAMPLE = 100
 
-t0 = time.perf_counter()                # start-tid
-next_time = t0                          # næste sendetid
+check = True
 
-with open("stream_preview.csv", "w") as f:           # lav en fil vi kan åbne bagefter
-    f.write("t_ms," + ",".join([f"ch{i}" for i in range(downsampled.shape[1])]) + "\n")  # header-linje
+for root, dirs, files in os.walk(INPUT_FOLDER):
 
-    for i in range(N):                                # loop over N samples
-        now = time.perf_counter()                     # nu-tid
-        if now < next_time:
-            time.sleep(next_time - now)               # vent så tempoet bliver realistisk
 
-        frame = downsampled[i, :]                     # én sample = alle kanaler
-        t_ms = int((time.perf_counter() - t0) * 1000) # ms siden start
+    for file in tqdm.tqdm(files, desc="Files"):
 
-        line = str(t_ms) + "," + ",".join(f"{v:.6f}" for v in frame) + "\n"  # CSV-linje med newline
-        f.write(line)                                  # skriv linjen til fil
+        if not file.endswith(".rhd"):
+            continue
 
-        next_time += dt                                # næste tidspunkt
+        input_path = os.path.join(root, file)
 
-print("Wrote stream_preview.csv with", N, "lines.")
+        # lav output mappe
+        relative = os.path.relpath(root, INPUT_FOLDER)
+        output_dir = os.path.join(OUTPUT_FOLDER, relative)
+        os.makedirs(output_dir, exist_ok=True)
+
+        output_file = os.path.join(
+            output_dir,
+            file.replace(".rhd", ".csv")
+        )
+
+        print("Processing:", input_path)
+
+        # load recording
+        recording = se.read_intan(input_path, stream_id="0")
+
+        fs = recording.get_sampling_frequency()
+        traces = recording.get_traces()
+        print("Original shape:", traces.shape)
+
+        if check == True:
+            WINDOW = int(fs * 0.1)   # 100 ms
+
+            features = []
+
+            for start in range(0, traces.shape[0] - WINDOW, WINDOW):
+
+                segment = traces[start:start+WINDOW]
+
+                mean = np.mean(segment, axis=0)
+                std = np.std(segment, axis=0)
+                rms = np.sqrt(np.mean(segment**2, axis=0))
+                mx = np.max(np.abs(segment), axis=0)
+
+                feature_vector = np.concatenate([mean, std, rms, mx])
+
+                features.append(feature_vector)
+
+            features = np.array(features)
+
+            np.savetxt(
+            output_file,
+            features,
+            delimiter=",")
+    else:
+        # downsample
+        downsampled = decimate(traces, DOWNSAMPLE, axis=0)
+        downsampled = downsampled.astype(np.float32) # konverter til float32 for at spare plads, kan også bruge int16 hvis nødvendigt
+
+        new_fs = fs / DOWNSAMPLE
+        print("New sampling rate:", new_fs)
+
+        # gem som CSV
+        np.savetxt(
+            output_file,
+            downsampled,
+            delimiter=","
+        )
+        print("Saved:", output_file)
