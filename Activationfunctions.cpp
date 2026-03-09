@@ -73,7 +73,7 @@ void leaky_relu_dev(Tensor &t) {
 }
 
 // Softmax activationfunction
-void softmax(fTensor &t) {
+void softmax(Tensor &t) {
   for (int r = 0; r < t.rows; r++) {
     float sum = 0.0f;
 
