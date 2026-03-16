@@ -10,7 +10,7 @@ ser = serial.Serial("COM3", 115200)
 
 folder = "data/RAT3_PRICKING"
 
-# Sæt til en konkret .rhd-fil for at streame kun den ene fil.
+# Sæt til en .rhd-fil for at streame kun den ene fil.
 # fx:
 # RHD_FILE = "data/RAT10_DORSIFLEXION/dorsi_170605_122607.rhd"
 RHD_FILE = None
@@ -18,11 +18,14 @@ RHD_FILE = None
 WINDOW_SIZE = 100
 STREAM_RATE_HZ = 300
 
-# stop stream hvis payload pr. kanal bliver mindre end dette
+# stop stream hvis payload pr. kanal bliver mindre end dete
 MIN_PAYLOAD_SAMPLES = WINDOW_SIZE
 
 # downsample fra 30 kHz -> 300 Hz (samme som CSV-pipeline)
 DOWNSAMPLE = 100
+
+# vælg resampling-metode: "decimate", "mean" eller "none"
+METHOD = "decimate"
 
 # hvis True: sender "chX,val1,val2,..."
 # hvis False: sender kun "val1,val2,..."
@@ -30,6 +33,26 @@ INCLUDE_CHANNEL_PREFIX = False
 
 # hvilket Intan stream-id der skal bruges. vores amp er "0"
 STREAM_ID = "0"
+
+
+def resample_chunk(raw_chunk: np.ndarray) -> np.ndarray:
+	method = METHOD.lower()
+
+	if method == "decimate":
+		return decimate(raw_chunk, DOWNSAMPLE, axis=0).astype(np.float32)
+
+	if method == "mean":
+		n_blocks = raw_chunk.shape[0] // DOWNSAMPLE
+		if n_blocks == 0:
+			return np.empty((0, raw_chunk.shape[1]), dtype=np.float32)
+		trimmed = raw_chunk[: n_blocks * DOWNSAMPLE]
+		return trimmed.reshape(n_blocks, DOWNSAMPLE, raw_chunk.shape[1]).mean(axis=1).astype(np.float32)
+
+	if method == "none":
+		# Hurtig benchmark-metode uden anti-alias filtering.
+		return raw_chunk[::DOWNSAMPLE].astype(np.float32)
+
+	raise ValueError(f"Ukendt METHOD: {METHOD}. Brug 'decimate', 'mean' eller 'none'.")
 
 
 def stream_rhd_file(path: str) -> bool:
@@ -40,6 +63,7 @@ def stream_rhd_file(path: str) -> bool:
 
 	print(f"Streaming: {path}")
 	print(f"Raw fs: {fs} Hz | channels: {n_channels} | samples: {n_samples}")
+	print(f"Method: {METHOD} | factor: {DOWNSAMPLE}")
 
 	raw_window = WINDOW_SIZE * DOWNSAMPLE
 
@@ -51,7 +75,7 @@ def stream_rhd_file(path: str) -> bool:
 		if raw_chunk.shape[0] < DOWNSAMPLE:
 			continue
 
-		downsampled = decimate(raw_chunk, DOWNSAMPLE, axis=0).astype(np.float32)
+		downsampled = resample_chunk(raw_chunk)
 		channel_data = downsampled.T  # [kanal, tid]
 
 		if downsampled.shape[0] < MIN_PAYLOAD_SAMPLES:
