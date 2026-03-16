@@ -3,6 +3,7 @@ import time
 import numpy as np
 import tqdm
 import os
+# tror jeg vil lave det samme, men kan bare tage direkte fra rhd filerne i stedet
 
 ser = serial.Serial("COM3", 115200)
 
