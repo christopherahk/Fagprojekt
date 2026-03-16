@@ -14,6 +14,7 @@ STREAM_RATE_HZ = 300
 
 # hvis True: sender "chX,val1,val2,..."
 # hvis False: sender kun "val1,val2,..."
+
 INCLUDE_CHANNEL_PREFIX = False
 
 for root, dirs, files in os.walk(folder):
