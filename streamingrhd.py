@@ -6,9 +6,10 @@ import os
 import spikeinterface.extractors as se
 from scipy.signal import decimate
 
-ser = serial.Serial("COM3", 115200)
+SERIAL_PORT = "COM3"
+BAUD_RATE = 115200
 
-folder = "data/RAT3_PRICKING"
+folder = "data"
 
 # Sæt til en .rhd-fil for at streame kun den ene fil.
 # fx:
@@ -55,7 +56,16 @@ def resample_chunk(raw_chunk: np.ndarray) -> np.ndarray:
 	raise ValueError(f"Ukendt METHOD: {METHOD}. Brug 'decimate', 'mean' eller 'none'.")
 
 
-def stream_rhd_file(path: str) -> bool:
+def collect_rhd_files(root_folder: str) -> list[str]:
+	paths: list[str] = []
+	for root, _, files in os.walk(root_folder):
+		rhd_files = [f for f in sorted(files) if f.endswith(".rhd")]
+		for file in rhd_files:
+			paths.append(os.path.join(root, file))
+	return paths
+
+
+def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 	recording = se.read_intan(path, stream_id=STREAM_ID)
 	fs = recording.get_sampling_frequency()
 	n_samples = recording.get_num_samples()
@@ -69,6 +79,7 @@ def stream_rhd_file(path: str) -> bool:
 
 	for raw_start in range(0, n_samples, raw_window):
 		raw_end = min(raw_start + raw_window, n_samples)
+		is_last_chunk = raw_end >= n_samples
 		raw_chunk = recording.get_traces(start_frame=raw_start, end_frame=raw_end)
 
 		# For korte chunks kan ikke decimeres stabilt
@@ -79,6 +90,11 @@ def stream_rhd_file(path: str) -> bool:
 		channel_data = downsampled.T  # [kanal, tid]
 
 		if downsampled.shape[0] < MIN_PAYLOAD_SAMPLES:
+			if is_last_chunk:
+				print(
+					f"[END] Ignorerer sidste korte payload: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} i {path}."
+				)
+				break
 			print(
 				f"[SKIP] Payload for lille: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} samples i {path}."
 			)
@@ -91,6 +107,12 @@ def stream_rhd_file(path: str) -> bool:
 				continue
 
 			if chunk.size < MIN_PAYLOAD_SAMPLES:
+				if is_last_chunk:
+					print(
+						f"[END] Ignorerer sidste korte payload pa kanal {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} i {path}."
+					)
+					payload_batch = []
+					break
 				print(
 					f"[SKIP] Payload for lille på kanal {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} i {path}."
 				)
@@ -114,24 +136,21 @@ def stream_rhd_file(path: str) -> bool:
 	return True
 
 
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE)
 try:
 	if RHD_FILE is not None:
-		success = stream_rhd_file(RHD_FILE)
+		success = stream_rhd_file(RHD_FILE, ser=ser)
 		if not success:
 			print("Filen blev skippet pga. payload-størrelse.")
 	else:
 		total_ok = 0
 		total_skipped = 0
-		for root, _, files in os.walk(folder):
-			rhd_files = [f for f in sorted(files) if f.endswith(".rhd")]
-
-			for file in tqdm.tqdm(rhd_files, desc="RHD files"):
-				path = os.path.join(root, file)
-				success = stream_rhd_file(path)
-				if success:
-					total_ok += 1
-				else:
-					total_skipped += 1
+		for path in tqdm.tqdm(collect_rhd_files(folder), desc="RHD files"):
+			success = stream_rhd_file(path, ser=ser)
+			if success:
+				total_ok += 1
+			else:
+				total_skipped += 1
 
 		print(f"Done. Streamed: {total_ok} | Skipped: {total_skipped}")
 finally:
