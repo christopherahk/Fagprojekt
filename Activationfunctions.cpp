@@ -1,4 +1,4 @@
-#include <cmath>
+#include <math.h>
 
 // Sigmoid activationfunction and derivative
 
@@ -7,9 +7,9 @@ void sigmoid(float *arr, int size) {
     float x = arr[i];
 
     if (x >= 0.0f) {
-      arr[i] = 1.0f / (1.0f + std::exp(-x));
+      arr[i] = 1.0f / (1.0f + expf(-x));
     } else {
-      float z = std::exp(x);
+      float z = expf(x);
       arr[i] = z / (1.0f + z);
     }
   }
@@ -64,7 +64,7 @@ void softmax(float *arr, int size) {
   float sum = 0.0f;
 
   for (int i = 0; i < size; i++) {
-    arr[i] = std::exp(arr[i]);
+    arr[i] = expf(arr[i]);
     sum += arr[i];
   }
 
