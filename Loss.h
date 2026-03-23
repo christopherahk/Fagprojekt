@@ -1,4 +1,7 @@
 #pragma once
 #include "Tensor.h"
 
-float computeMSEClassLoss(const Tensor &True_vals, const Tensor &Pred_vals);
+struct Loss {
+  virtual Tensor forward(const Tensor &yPred, const Tensor &yTrue) = 0;
+  virtual ~Loss() = default;
+};

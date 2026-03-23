@@ -1,7 +1,6 @@
 #pragma once
 #include "Loss.h"
 
-struct Loss {
-  virtual Tensor forward(const Tensor &yPred, const Tensor &yTrue) = 0;
-  virtual ~Loss() = default;
+struct CategoricalCrossEntropyLoss : Loss {
+  Tensor forward(const Tensor &yPred, const Tensor &yTrue) override;
 };

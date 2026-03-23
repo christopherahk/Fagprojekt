@@ -74,11 +74,17 @@ void leaky_relu_dev(Tensor &t) {
 // Softmax activationfunction
 void softmax(Tensor &t) {
   for (int r = 0; r < t.rows; r++) {
-    float sum = 0.0f;
+    // numerical stability: subtract max
+    float maxVal = t(r, 0);
+    for (int c = 1; c < t.cols; c++) {
+      if (t(r, c) > maxVal)
+        maxVal = t(r, c);
+    }
 
-    for (int i = 0; i < size; i++) {
-      arr[i] = expf(arr[i]);
-      sum += arr[i];
+    float sum = 0.0f;
+    for (int c = 0; c < t.cols; c++) {
+      t(r, c) = expf(t(r, c) - maxVal);
+      sum += t(r, c);
     }
 
     for (int c = 0; c < t.cols; c++) {
