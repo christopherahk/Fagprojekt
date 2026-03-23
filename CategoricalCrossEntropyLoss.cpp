@@ -1,6 +1,6 @@
 #include "CategoricalCrossEntropyLoss.h"
 #include "Tensor.h"
-#include <cmath>
+#include <math.h>
 
 Tensor CategoricalCrossEntropyLoss::forward(const Tensor &yPred,
                                             const Tensor &yTrue) {
@@ -9,7 +9,7 @@ Tensor CategoricalCrossEntropyLoss::forward(const Tensor &yPred,
   Tensor correctConfidences = yPredClipped.selectTrueClass(yTrue);
 
   auto negativeLogLikelihoodFunc = [](const float &x) -> float {
-    return -log(x);
+    return -logf(x);
   };
   Tensor negativeLogLikelihoods =
       correctConfidences.applyElementWise(negativeLogLikelihoodFunc);

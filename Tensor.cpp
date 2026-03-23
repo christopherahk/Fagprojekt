@@ -1,8 +1,5 @@
 #include "Tensor.h"
 #include <Arduino.h>
-#include <algorithm>
-#include <string>
-#include <utility> // used for std::swap
 
 Tensor::Tensor(const float *data_, int rows_, int cols_)
     : rows(rows_), cols(cols_), size(rows_ * cols_) {
@@ -23,7 +20,9 @@ Tensor::Tensor(const Tensor &other)
     : rows(other.rows), cols(other.cols), size(other.rows * other.cols) {
   // Copy constructor - deep copies the data array.
   data = new float[size];
-  std::copy(other.data, other.data + size, data);
+  for (int i = 0; i < size; i++) {
+    data[i] = other.data[i];
+  }
 }
 
 Tensor::Tensor() : rows(0), cols(0), size(0), data(nullptr) {}
@@ -36,24 +35,24 @@ Tensor::~Tensor() {
 void Tensor::fill(const float *values) {
   // Fills the values by making a copy.
   if (values != nullptr) {
-    std::copy(values, values + size, data);
+    for (int i = 0; i < size; i++) {
+      data[i] = values[i];
+    }
   }
 }
 
 void Tensor::printTensor() {
   // Prints the tensor row by row.
   for (int r = 0; r < rows; r++) {
-    std::string row = "[";
+    Serial.print("[");
     for (int c = 0; c < cols; c++) {
-      row += std::to_string(this->operator()(r, c));
+      Serial.print(this->operator()(r, c), 6);
 
       if (c != cols - 1) {
-        row += ", ";
-      } else {
-        row += "]";
+        Serial.print(", ");
       }
     }
-    Serial.println(row.c_str());
+    Serial.println("]");
   }
 }
 
@@ -99,10 +98,21 @@ Tensor Tensor::operator-(const Tensor &B) {
 
 void Tensor::swap(Tensor &B) {
   // Swap function for the copy and swap idiom.
-  std::swap(rows, B.rows);
-  std::swap(cols, B.cols);
-  std::swap(size, B.size);
-  std::swap(data, B.data);
+  int tmpRows = rows;
+  rows = B.rows;
+  B.rows = tmpRows;
+
+  int tmpCols = cols;
+  cols = B.cols;
+  B.cols = tmpCols;
+
+  int tmpSize = size;
+  size = B.size;
+  B.size = tmpSize;
+
+  float *tmpData = data;
+  data = B.data;
+  B.data = tmpData;
 }
 
 Tensor &Tensor::operator=(Tensor B) { // copy

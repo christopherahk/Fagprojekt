@@ -40,6 +40,7 @@
 .vscode/
 !.vscode/extensions.json
 !.vscode/launch.json
+.copilotignore
 
 # Python cache (if you use uv/pre-commit)
 __pycache__/

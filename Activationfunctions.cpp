@@ -76,9 +76,9 @@ void softmax(Tensor &t) {
   for (int r = 0; r < t.rows; r++) {
     float sum = 0.0f;
 
-    for (int c = 0; c < t.cols; c++) {
-      t(r, c) = std::exp(t(r, c));
-      sum += t(r, c);
+    for (int i = 0; i < size; i++) {
+      arr[i] = expf(arr[i]);
+      sum += arr[i];
     }
 
     for (int c = 0; c < t.cols; c++) {
