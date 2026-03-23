@@ -8,12 +8,11 @@ void sigmoid(Tensor &t) {
     for (int c = 0; c < t.cols; c++) {
       float x = t(r, c);
 
-      if (x >= 0.0f) {
-        t(r, c) = 1.0f / (1.0f + std::exp(-x));
-      } else {
-        float z = std::exp(x);
-        t(r, c) = z / (1.0f + z);
-      }
+    if (x >= 0.0f) {
+      arr[i] = 1.0f / (1.0f + expf(-x));
+    } else {
+      float z = expf(x);
+      arr[i] = z / (1.0f + z);
     }
   }
 }
@@ -77,10 +76,10 @@ void softmax(Tensor &t) {
   for (int r = 0; r < t.rows; r++) {
     float sum = 0.0f;
 
-    for (int c = 0; c < t.cols; c++) {
-      t(r, c) = std::exp(t(r, c));
-      sum += t(r, c);
-    }
+  for (int i = 0; i < size; i++) {
+    arr[i] = expf(arr[i]);
+    sum += arr[i];
+  }
 
     for (int c = 0; c < t.cols; c++) {
       t(r, c) /= sum;
