@@ -27,6 +27,10 @@ DOWNSAMPLE = 100
 
 # vælg resampling-metode: "decimate", "mean" eller "none"
 METHOD = "decimate"
+# "decimate" bruger anti-aliasing filer
+# "mean" tager gennemsnit over blokke
+# "none" tager hver N-te prøve uden filtrering
+
 
 # hvis True: sender "chX,val1,val2,..."
 # hvis False: sender kun "val1,val2,..."
@@ -53,7 +57,7 @@ def resample_chunk(raw_chunk: np.ndarray) -> np.ndarray:
 		# Hurtig benchmark-metode uden anti-alias filtering.
 		return raw_chunk[::DOWNSAMPLE].astype(np.float32)
 
-	raise ValueError(f"Ukendt METHOD: {METHOD}. Brug 'decimate', 'mean' eller 'none'.")
+	raise ValueError(f"unknown METHOD: {METHOD}. Use 'decimate', 'mean' or 'none'.")
 
 
 def collect_rhd_files(root_folder: str) -> list[str]:
@@ -92,11 +96,11 @@ def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 		if downsampled.shape[0] < MIN_PAYLOAD_SAMPLES:
 			if is_last_chunk:
 				print(
-					f"[END] Ignorerer sidste korte payload: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} i {path}."
+					f"[END] Ignore last short payload: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} in {path}."
 				)
 				break
 			print(
-				f"[SKIP] Payload for lille: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} samples i {path}."
+				f"[SKIP] Payload too small: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} samples in {path}."
 			)
 			return False
 
@@ -109,12 +113,12 @@ def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 			if chunk.size < MIN_PAYLOAD_SAMPLES:
 				if is_last_chunk:
 					print(
-						f"[END] Ignorerer sidste korte payload pa kanal {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} i {path}."
+						f"[END] Ignore last short payload on channel {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} in {path}."
 					)
 					payload_batch = []
 					break
 				print(
-					f"[SKIP] Payload for lille på kanal {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} i {path}."
+					f"[SKIP] Payload too small on channel {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} in {path}."
 				)
 				return False
 
@@ -141,7 +145,7 @@ try:
 	if RHD_FILE is not None:
 		success = stream_rhd_file(RHD_FILE, ser=ser)
 		if not success:
-			print("Filen blev skippet pga. payload-størrelse.")
+			print("File skippet due to payload-size.")
 	else:
 		total_ok = 0
 		total_skipped = 0
