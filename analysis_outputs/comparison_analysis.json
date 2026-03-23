@@ -1,0 +1,579 @@
+{
+  "analysis": {
+    "DORSIFLEXION": {
+      "num_rats": 7.0,
+      "total_files": 25.0,
+      "avg_files_per_rat": 3.5714285714285716,
+      "total_duration_hours": 0.3512533333333333,
+      "avg_duration_per_file_s": 50.580479999999994,
+      "total_size_gb": 4.188333006575704,
+      "avg_file_size_mb": 171.55411994934082,
+      "min_duration_s": 1.344,
+      "max_duration_s": 60.032
+    },
+    "DORSI_PLANTAR_PART1": {
+      "num_rats": 7.0,
+      "total_files": 27.0,
+      "avg_files_per_rat": 3.857142857142857,
+      "total_duration_hours": 0.45024,
+      "avg_duration_per_file_s": 60.03199999999999,
+      "total_size_gb": 5.3429578598588705,
+      "avg_file_size_mb": 202.63662401835123,
+      "min_duration_s": 60.032,
+      "max_duration_s": 60.032
+    },
+    "DORSI_PLANTAR_PART2": {
+      "num_rats": 7.0,
+      "total_files": 17.0,
+      "avg_files_per_rat": 2.4285714285714284,
+      "total_duration_hours": 0.25162666666666667,
+      "avg_duration_per_file_s": 53.28564705882353,
+      "total_size_gb": 3.0353859532624483,
+      "avg_file_size_mb": 182.83736565533806,
+      "min_duration_s": 21.472,
+      "max_duration_s": 60.032
+    },
+    "PLANTARFLEXION": {
+      "num_rats": 7.0,
+      "total_files": 26.0,
+      "avg_files_per_rat": 3.7142857142857144,
+      "total_duration_hours": 0.3524888888888889,
+      "avg_duration_per_file_s": 48.80615384615384,
+      "total_size_gb": 4.204214412719011,
+      "avg_file_size_mb": 165.5813676393949,
+      "min_duration_s": 0.448,
+      "max_duration_s": 60.032
+    },
+    "PRICKING": {
+      "num_rats": 8.0,
+      "total_files": 27.0,
+      "avg_files_per_rat": 3.375,
+      "total_duration_hours": 0.38208888888888887,
+      "avg_duration_per_file_s": 50.945185185185174,
+      "total_size_gb": 4.557222550734878,
+      "avg_file_size_mb": 172.83688488713017,
+      "min_duration_s": 0.768,
+      "max_duration_s": 60.032
+    }
+  },
+  "comparison": {
+    "RAT10": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 106.72,
+      "DORSIFLEXION_duration_s": 176.704,
+      "PLANTARFLEXION_duration_s": 174.39999999999998,
+      "FLEXION_COMBINED_duration_s": 351.104,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 2.0,
+      "DORSIFLEXION_files": 3.0,
+      "PLANTARFLEXION_files": 3.0,
+      "dp_vs_flexion_ratio_1": 0.6839227123587313,
+      "dp_vs_flexion_ratio_2": 0.303955523149836,
+      "dp_combined_vs_flexion_ratio": 0.9878782355085671
+    },
+    "RAT4": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 149.344,
+      "DORSIFLEXION_duration_s": 185.152,
+      "PLANTARFLEXION_duration_s": 184.70399999999998,
+      "FLEXION_COMBINED_duration_s": 369.856,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 3.0,
+      "DORSIFLEXION_files": 4.0,
+      "PLANTARFLEXION_files": 4.0,
+      "dp_vs_flexion_ratio_1": 0.6492472746149852,
+      "dp_vs_flexion_ratio_2": 0.4037895829728327,
+      "dp_combined_vs_flexion_ratio": 1.053036857587818
+    },
+    "RAT5": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 117.28,
+      "DORSIFLEXION_duration_s": 184.064,
+      "PLANTARFLEXION_duration_s": 187.232,
+      "FLEXION_COMBINED_duration_s": 371.296,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 2.0,
+      "DORSIFLEXION_files": 4.0,
+      "PLANTARFLEXION_files": 4.0,
+      "dp_vs_flexion_ratio_1": 0.6467292941480651,
+      "dp_vs_flexion_ratio_2": 0.31586658622769975,
+      "dp_combined_vs_flexion_ratio": 0.9625958803757649
+    },
+    "RAT6": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 114.112,
+      "DORSIFLEXION_duration_s": 176.576,
+      "PLANTARFLEXION_duration_s": 180.54399999999998,
+      "FLEXION_COMBINED_duration_s": 357.12,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 2.0,
+      "DORSIFLEXION_files": 3.0,
+      "PLANTARFLEXION_files": 4.0,
+      "dp_vs_flexion_ratio_1": 0.6724014336917562,
+      "dp_vs_flexion_ratio_2": 0.31953405017921144,
+      "dp_combined_vs_flexion_ratio": 0.9919354838709677
+    },
+    "RAT7": {
+      "DORSI_PLANTAR_PART1_duration_s": 180.096,
+      "DORSI_PLANTAR_PART2_duration_s": 201.56799999999998,
+      "DORSIFLEXION_duration_s": 181.44,
+      "PLANTARFLEXION_duration_s": 184.416,
+      "FLEXION_COMBINED_duration_s": 365.856,
+      "DORSI_PLANTAR_PART1_files": 3.0,
+      "DORSI_PLANTAR_PART2_files": 4.0,
+      "DORSIFLEXION_files": 4.0,
+      "PLANTARFLEXION_files": 4.0,
+      "dp_vs_flexion_ratio_1": 0.49225924954080297,
+      "dp_vs_flexion_ratio_2": 0.5509490072596869,
+      "dp_combined_vs_flexion_ratio": 1.04320825680049
+    },
+    "RAT8": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 108.0,
+      "DORSIFLEXION_duration_s": 183.2,
+      "PLANTARFLEXION_duration_s": 182.56,
+      "FLEXION_COMBINED_duration_s": 365.76,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 2.0,
+      "DORSIFLEXION_files": 4.0,
+      "PLANTARFLEXION_files": 4.0,
+      "dp_vs_flexion_ratio_1": 0.6565179352580928,
+      "dp_vs_flexion_ratio_2": 0.29527559055118113,
+      "dp_combined_vs_flexion_ratio": 0.9517935258092738
+    },
+    "RAT9": {
+      "DORSI_PLANTAR_PART1_duration_s": 240.128,
+      "DORSI_PLANTAR_PART2_duration_s": 108.832,
+      "DORSIFLEXION_duration_s": 177.37599999999998,
+      "PLANTARFLEXION_duration_s": 175.10399999999998,
+      "FLEXION_COMBINED_duration_s": 352.47999999999996,
+      "DORSI_PLANTAR_PART1_files": 4.0,
+      "DORSI_PLANTAR_PART2_files": 2.0,
+      "DORSIFLEXION_files": 3.0,
+      "PLANTARFLEXION_files": 3.0,
+      "dp_vs_flexion_ratio_1": 0.6812528370403995,
+      "dp_vs_flexion_ratio_2": 0.3087607807535179,
+      "dp_combined_vs_flexion_ratio": 0.9900136177939174
+    }
+  },
+  "timestamp_windows": [
+    {
+      "rat": "RAT10",
+      "type": "DORSIFLEXION",
+      "date": "170605",
+      "start": "2017-06-05 12:26:07",
+      "end": "2017-06-05 12:28:07",
+      "count": 3
+    },
+    {
+      "rat": "RAT10",
+      "type": "PLANTARFLEXION",
+      "date": "170605",
+      "start": "2017-06-05 12:30:34",
+      "end": "2017-06-05 12:32:35",
+      "count": 3
+    },
+    {
+      "rat": "RAT10",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170605",
+      "start": "2017-06-05 12:34:54",
+      "end": "2017-06-05 12:37:55",
+      "count": 4
+    },
+    {
+      "rat": "RAT10",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170605",
+      "start": "2017-06-05 12:38:55",
+      "end": "2017-06-05 12:39:55",
+      "count": 2
+    },
+    {
+      "rat": "RAT10",
+      "type": "PRICKING",
+      "date": "170605",
+      "start": "2017-06-05 12:42:16",
+      "end": "2017-06-05 12:44:17",
+      "count": 3
+    },
+    {
+      "rat": "RAT3",
+      "type": "PRICKING",
+      "date": "170227",
+      "start": "2017-02-27 13:32:27",
+      "end": "2017-02-27 13:33:27",
+      "count": 2
+    },
+    {
+      "rat": "RAT4",
+      "type": "DORSIFLEXION",
+      "date": "170306",
+      "start": "2017-03-06 12:33:22",
+      "end": "2017-03-06 12:36:22",
+      "count": 4
+    },
+    {
+      "rat": "RAT4",
+      "type": "PLANTARFLEXION",
+      "date": "170306",
+      "start": "2017-03-06 12:39:36",
+      "end": "2017-03-06 12:42:36",
+      "count": 4
+    },
+    {
+      "rat": "RAT4",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170306",
+      "start": "2017-03-06 12:45:18",
+      "end": "2017-03-06 12:48:18",
+      "count": 4
+    },
+    {
+      "rat": "RAT4",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170306",
+      "start": "2017-03-06 12:49:18",
+      "end": "2017-03-06 12:51:18",
+      "count": 3
+    },
+    {
+      "rat": "RAT4",
+      "type": "PRICKING",
+      "date": "170306",
+      "start": "2017-03-06 12:54:02",
+      "end": "2017-03-06 12:57:03",
+      "count": 4
+    },
+    {
+      "rat": "RAT5",
+      "type": "DORSIFLEXION",
+      "date": "170313",
+      "start": "2017-03-13 12:37:03",
+      "end": "2017-03-13 12:40:03",
+      "count": 4
+    },
+    {
+      "rat": "RAT5",
+      "type": "PLANTARFLEXION",
+      "date": "170313",
+      "start": "2017-03-13 12:42:23",
+      "end": "2017-03-13 12:45:23",
+      "count": 4
+    },
+    {
+      "rat": "RAT5",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170313",
+      "start": "2017-03-13 12:47:17",
+      "end": "2017-03-13 12:50:17",
+      "count": 4
+    },
+    {
+      "rat": "RAT5",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170313",
+      "start": "2017-03-13 12:51:17",
+      "end": "2017-03-13 12:52:17",
+      "count": 2
+    },
+    {
+      "rat": "RAT5",
+      "type": "PRICKING",
+      "date": "170313",
+      "start": "2017-03-13 12:55:43",
+      "end": "2017-03-13 12:58:43",
+      "count": 4
+    },
+    {
+      "rat": "RAT6",
+      "type": "DORSIFLEXION",
+      "date": "170320",
+      "start": "2017-03-20 11:50:20",
+      "end": "2017-03-20 11:52:20",
+      "count": 3
+    },
+    {
+      "rat": "RAT6",
+      "type": "PLANTARFLEXION",
+      "date": "170320",
+      "start": "2017-03-20 11:56:56",
+      "end": "2017-03-20 11:59:56",
+      "count": 4
+    },
+    {
+      "rat": "RAT6",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170320",
+      "start": "2017-03-20 12:01:52",
+      "end": "2017-03-20 12:04:52",
+      "count": 4
+    },
+    {
+      "rat": "RAT6",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170320",
+      "start": "2017-03-20 12:05:52",
+      "end": "2017-03-20 12:06:53",
+      "count": 2
+    },
+    {
+      "rat": "RAT6",
+      "type": "PRICKING",
+      "date": "170320",
+      "start": "2017-03-20 12:12:16",
+      "end": "2017-03-20 12:15:16",
+      "count": 4
+    },
+    {
+      "rat": "RAT7",
+      "type": "DORSIFLEXION",
+      "date": "170508",
+      "start": "2017-05-08 11:44:43",
+      "end": "2017-05-08 11:47:43",
+      "count": 4
+    },
+    {
+      "rat": "RAT7",
+      "type": "PLANTARFLEXION",
+      "date": "170508",
+      "start": "2017-05-08 11:50:26",
+      "end": "2017-05-08 11:53:27",
+      "count": 4
+    },
+    {
+      "rat": "RAT7",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170508",
+      "start": "2017-05-08 11:55:54",
+      "end": "2017-05-08 11:57:54",
+      "count": 3
+    },
+    {
+      "rat": "RAT7",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170508",
+      "start": "2017-05-08 11:58:54",
+      "end": "2017-05-08 12:01:54",
+      "count": 4
+    },
+    {
+      "rat": "RAT7",
+      "type": "PRICKING",
+      "date": "170508",
+      "start": "2017-05-08 12:04:19",
+      "end": "2017-05-08 12:07:19",
+      "count": 4
+    },
+    {
+      "rat": "RAT8",
+      "type": "DORSIFLEXION",
+      "date": "170515",
+      "start": "2017-05-15 12:33:51",
+      "end": "2017-05-15 12:36:51",
+      "count": 4
+    },
+    {
+      "rat": "RAT8",
+      "type": "PLANTARFLEXION",
+      "date": "170515",
+      "start": "2017-05-15 12:42:15",
+      "end": "2017-05-15 12:45:15",
+      "count": 4
+    },
+    {
+      "rat": "RAT8",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170515",
+      "start": "2017-05-15 12:49:14",
+      "end": "2017-05-15 12:52:14",
+      "count": 4
+    },
+    {
+      "rat": "RAT8",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170515",
+      "start": "2017-05-15 12:53:14",
+      "end": "2017-05-15 12:54:14",
+      "count": 2
+    },
+    {
+      "rat": "RAT8",
+      "type": "PRICKING",
+      "date": "170515",
+      "start": "2017-05-15 12:58:43",
+      "end": "2017-05-15 13:00:43",
+      "count": 3
+    },
+    {
+      "rat": "RAT9",
+      "type": "DORSIFLEXION",
+      "date": "170529",
+      "start": "2017-05-29 12:37:04",
+      "end": "2017-05-29 12:39:04",
+      "count": 3
+    },
+    {
+      "rat": "RAT9",
+      "type": "PLANTARFLEXION",
+      "date": "170529",
+      "start": "2017-05-29 12:43:20",
+      "end": "2017-05-29 12:45:20",
+      "count": 3
+    },
+    {
+      "rat": "RAT9",
+      "type": "DORSI_PLANTAR_PART1",
+      "date": "170529",
+      "start": "2017-05-29 12:48:01",
+      "end": "2017-05-29 12:51:01",
+      "count": 4
+    },
+    {
+      "rat": "RAT9",
+      "type": "DORSI_PLANTAR_PART2",
+      "date": "170529",
+      "start": "2017-05-29 12:52:01",
+      "end": "2017-05-29 12:53:01",
+      "count": 2
+    },
+    {
+      "rat": "RAT9",
+      "type": "PRICKING",
+      "date": "170529",
+      "start": "2017-05-29 12:56:59",
+      "end": "2017-05-29 12:58:59",
+      "count": 3
+    }
+  ],
+  "time_separation": {
+    "RAT10": {
+      "flex_end": "2017-06-05 12:32:35",
+      "dp_start": "2017-06-05 12:34:54",
+      "gap_minutes": 2.316666666666667,
+      "separated_in_time": true
+    },
+    "RAT3": {
+      "flex_end": null,
+      "dp_start": null,
+      "gap_minutes": null,
+      "separated_in_time": null
+    },
+    "RAT4": {
+      "flex_end": "2017-03-06 12:42:36",
+      "dp_start": "2017-03-06 12:45:18",
+      "gap_minutes": 2.7,
+      "separated_in_time": true
+    },
+    "RAT5": {
+      "flex_end": "2017-03-13 12:45:23",
+      "dp_start": "2017-03-13 12:47:17",
+      "gap_minutes": 1.9,
+      "separated_in_time": true
+    },
+    "RAT6": {
+      "flex_end": "2017-03-20 11:59:56",
+      "dp_start": "2017-03-20 12:01:52",
+      "gap_minutes": 1.9333333333333333,
+      "separated_in_time": true
+    },
+    "RAT7": {
+      "flex_end": "2017-05-08 11:53:27",
+      "dp_start": "2017-05-08 11:55:54",
+      "gap_minutes": 2.45,
+      "separated_in_time": true
+    },
+    "RAT8": {
+      "flex_end": "2017-05-15 12:45:15",
+      "dp_start": "2017-05-15 12:49:14",
+      "gap_minutes": 3.9833333333333334,
+      "separated_in_time": true
+    },
+    "RAT9": {
+      "flex_end": "2017-05-29 12:45:20",
+      "dp_start": "2017-05-29 12:48:01",
+      "gap_minutes": 2.683333333333333,
+      "separated_in_time": true
+    }
+  },
+  "cross_type_duplicate_hash_groups": 0,
+  "signal_similarity": {
+    "RAT10": {
+      "available": 1.0,
+      "dp_samples_500hz": 173424.0,
+      "flex_samples_500hz": 175552.0,
+      "overlap_samples": 173424.0,
+      "pearson_abs_overlap": 0.034649803798791345,
+      "max_abs_xcorr_30s": 0.1214421818639594,
+      "best_lag_seconds": -28.382,
+      "psd_corr": 0.8740046752885796,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT4": {
+      "available": 1.0,
+      "dp_samples_500hz": 194736.0,
+      "flex_samples_500hz": 184928.0,
+      "overlap_samples": 184928.0,
+      "pearson_abs_overlap": 0.03565230738588284,
+      "max_abs_xcorr_30s": 0.09125559548951988,
+      "best_lag_seconds": 18.056,
+      "psd_corr": 0.8565298989010016,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT5": {
+      "available": 1.0,
+      "dp_samples_500hz": 178704.0,
+      "flex_samples_500hz": 185648.0,
+      "overlap_samples": 178704.0,
+      "pearson_abs_overlap": 0.020251391536881578,
+      "max_abs_xcorr_30s": 0.04335524155796892,
+      "best_lag_seconds": -11.218,
+      "psd_corr": 0.8884209350147257,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT6": {
+      "available": 1.0,
+      "dp_samples_500hz": 177120.0,
+      "flex_samples_500hz": 178560.0,
+      "overlap_samples": 177120.0,
+      "pearson_abs_overlap": 0.06303368868369101,
+      "max_abs_xcorr_30s": 0.13076290835988988,
+      "best_lag_seconds": -4.618,
+      "psd_corr": 0.9004662707448441,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT7": {
+      "available": 1.0,
+      "dp_samples_500hz": 190832.0,
+      "flex_samples_500hz": 182928.0,
+      "overlap_samples": 182928.0,
+      "pearson_abs_overlap": 0.01334720543262349,
+      "max_abs_xcorr_30s": 0.06365501563625983,
+      "best_lag_seconds": -25.508,
+      "psd_corr": 0.8661758974533041,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT8": {
+      "available": 1.0,
+      "dp_samples_500hz": 174064.0,
+      "flex_samples_500hz": 182880.0,
+      "overlap_samples": 174064.0,
+      "pearson_abs_overlap": 0.01047885362737649,
+      "max_abs_xcorr_30s": 0.033820646468355316,
+      "best_lag_seconds": 0.226,
+      "psd_corr": 0.6773315697384285,
+      "likely_same_or_transformed": 0.0
+    },
+    "RAT9": {
+      "available": 1.0,
+      "dp_samples_500hz": 174480.0,
+      "flex_samples_500hz": 176240.0,
+      "overlap_samples": 174480.0,
+      "pearson_abs_overlap": 0.034964044803399784,
+      "max_abs_xcorr_30s": 0.06609130052116327,
+      "best_lag_seconds": 19.448,
+      "psd_corr": 0.8636406491425551,
+      "likely_same_or_transformed": 0.0
+    }
+  }
+}
