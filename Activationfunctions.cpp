@@ -7,7 +7,6 @@ void sigmoid(Tensor &t) {
   for (int r = 0; r < t.rows; r++) {
     for (int c = 0; c < t.cols; c++) {
       float x = t(r, c);
-
       if (x >= 0.0f) {
         t(r, c) = 1.0f / (1.0f + std::exp(-x));
       } else {

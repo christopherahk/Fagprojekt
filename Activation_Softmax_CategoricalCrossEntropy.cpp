@@ -4,7 +4,7 @@ float Activation_Softmax_CategoricalCrossEntropy::forward(const Tensor &yPred,
                                                           const Tensor &yTrue) {
   activation.forward(yPred);
 
-  return loss.calculate(activation.output, yTrue);
+  return loss.forward(activation.output, yTrue);
 }
 
 void Activation_Softmax_CategoricalCrossEntropy::backward(const Tensor &yTrue) {
