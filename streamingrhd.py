@@ -43,6 +43,9 @@ RHD_FILE = None
 WINDOW_SIZE = 100
 STREAM_RATE_HZ = 300
 
+# Standardiser alle filer til 56 kanaler.
+TARGET_CHANNELS = 56
+
 # stop stream hvis payload pr. kanal bliver mindre end dete
 MIN_PAYLOAD_SAMPLES = WINDOW_SIZE
 
@@ -200,6 +203,14 @@ def collect_rhd_files(root_folder: str, shuffle: bool = False, seed: int | None 
 	return paths
 
 
+def trim_channels(data: np.ndarray, target_channels: int = TARGET_CHANNELS) -> np.ndarray:
+	if data.shape[1] < target_channels:
+		raise ValueError(f"expected at least {target_channels} channels, got {data.shape[1]}")
+	if data.shape[1] == target_channels:
+		return data
+	return data[:, :target_channels]
+
+
 def stream_rhd_file(
 	path: str,
 	ser: serial.Serial,
@@ -233,6 +244,7 @@ def stream_rhd_file(
 			continue
 
 		downsampled = resample_chunk(raw_chunk)
+		downsampled = trim_channels(downsampled)
 		channel_data = downsampled.T  # [kanal, tid]
 
 		if downsampled.shape[0] < MIN_PAYLOAD_SAMPLES:

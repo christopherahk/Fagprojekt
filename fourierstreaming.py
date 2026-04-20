@@ -54,6 +54,9 @@ FFT_SIZE = 1024
 MIN_PAYLOAD_BINS = 6
 MAX_FREQ_HZ = 300.0
 
+# Standardiser alle filer til 56 kanaler.
+TARGET_CHANNELS = 56
+
 # Præprocessering før FFT
 NORMALIZE = True
 REMOVE_DC = True
@@ -175,6 +178,14 @@ def collect_rhd_files(root_folder: str, shuffle: bool = False, seed: int | None 
 	return paths
 
 
+def trim_channels(data: np.ndarray, target_channels: int = TARGET_CHANNELS) -> np.ndarray:
+	if data.shape[1] < target_channels:
+		raise ValueError(f"expected at least {target_channels} channels, got {data.shape[1]}")
+	if data.shape[1] == target_channels:
+		return data
+	return data[:, :target_channels]
+
+
 def maybe_downsample(raw_chunk: np.ndarray) -> np.ndarray:
 	factor = int(DOWNSAMPLE_BEFORE_FFT)
 	if factor <= 1:
@@ -282,13 +293,14 @@ def stream_rhd_file(
 			continue
 
 		downsampled = maybe_downsample(raw_chunk)
+		downsampled = trim_channels(downsampled)
 		if downsampled.shape[0] < 2:
 			continue
 
 		if downsampled.shape[0] < FFT_SIZE:
 			if is_last_chunk:
 				# Tillad padding i sidste vindue, så vi ikke mister hale-data.
-				pad = np.zeros((FFT_SIZE - downsampled.shape[0], n_channels), dtype=np.float32)
+				pad = np.zeros((FFT_SIZE - downsampled.shape[0], downsampled.shape[1]), dtype=np.float32)
 				downsampled = np.vstack([downsampled, pad])
 			else:
 				continue
