@@ -27,10 +27,12 @@ DOWNSAMPLE = 100
 
 # vælg resampling-metode: "decimate", "mean" eller "none"
 METHOD = "decimate"
-NORMALIZE = True
 # "decimate" bruger anti-aliasing filer
 # "mean" tager gennemsnit over blokke
 # "none" tager hver N-te prøve uden filtrering
+
+
+NORMALIZE = True
 
 
 # hvis True: sender "chX,val1,val2,..."
