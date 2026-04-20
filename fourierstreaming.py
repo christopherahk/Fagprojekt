@@ -6,10 +6,16 @@ import os
 import random
 from collections import deque
 import spikeinterface.extractors as se
-from scipy.signal import decimate
+from scipy.signal import decimate, stft
+from scipy.fft import dct
 
 SERIAL_PORT = "COM3"
 BAUD_RATE = 115200
+
+# Vælg transformation:
+# 0 = FFT, 1 = DCT, 2 = STFT
+FT = 0
+FT_NAMES = {0: "FFT", 1: "DCT", 2: "STFT"}
 
 folder = "data"
 
@@ -40,33 +46,31 @@ REPLAY_EVERY_N_CHUNKS = 8
 # RHD_FILE = "data/RAT10_DORSIFLEXION/dorsi_170605_122607.rhd"
 RHD_FILE = None
 
-WINDOW_SIZE = 100
-STREAM_RATE_HZ = 300
+# Stream-hastighed for FFT-vinduer (vinduer/sek). 0 = så hurtigt som muligt.
+STREAM_RATE_HZ = 20
+
+# FFT-konfiguration
+FFT_SIZE = 1024
+MIN_PAYLOAD_BINS = 6
+MAX_FREQ_HZ = 300.0
 
 # Standardiser alle filer til 56 kanaler.
 TARGET_CHANNELS = 56
 
-# stop stream hvis payload pr. kanal bliver mindre end dete
-MIN_PAYLOAD_SAMPLES = WINDOW_SIZE
-
-# downsample fra 30 kHz -> 300 Hz (samme som CSV-pipeline)
-DOWNSAMPLE = 100
-
-# vælg resampling-metode: "decimate", "mean" eller "none"
-METHOD = "decimate"
-# "decimate" bruger anti-aliasing filer
-# "mean" tager gennemsnit over blokke
-# "none" tager hver N-te prøve uden filtrering
-
-
+# Præprocessering før FFT
 NORMALIZE = True
+REMOVE_DC = True
+APPLY_HANN_WINDOW = True
 
+# Valgfri downsample før FFT. Sæt til 1 for at beholde 30 kHz.
+DOWNSAMPLE_BEFORE_FFT = 1
+DOWNSAMPLE_METHOD = "decimate"  # "decimate", "mean", "none"
 
-# hvis True: sender "chX,val1,val2,..."
-# hvis False: sender kun "val1,val2,..."
+# Hvis True: sender "chX,val1,val2,..."
+# Hvis False: sender kun "val1,val2,..."
 INCLUDE_CHANNEL_PREFIX = False
 
-# hvilket Intan stream-id der skal bruges. vores amp er "0"
+# Hvilket Intan stream-id der skal bruges. Vores amp er "0"
 STREAM_ID = "0"
 
 
@@ -159,35 +163,6 @@ def maybe_send_replay_payload(
 		time.sleep(chunk_duration_s)
 
 
-
-def resample_chunk(raw_chunk: np.ndarray) -> np.ndarray:
-	method = METHOD.lower()
-
-	def normalize_chunk(chunk: np.ndarray) -> np.ndarray:
-		chunk_f32 = chunk.astype(np.float32)
-		if NORMALIZE:
-			# Normaliserer til [-1, 1] baseret på 16-bit int range
-			return chunk_f32 / 32768.0
-		return chunk_f32
-
-	if method == "decimate":
-		decichunk = decimate(raw_chunk, DOWNSAMPLE, axis=0).astype(np.float32)
-		return normalize_chunk(decichunk)
-
-	if method == "mean":
-		n_blocks = raw_chunk.shape[0] // DOWNSAMPLE
-		if n_blocks == 0:
-			return np.empty((0, raw_chunk.shape[1]), dtype=np.float32)
-		trimmed = raw_chunk[: n_blocks * DOWNSAMPLE]
-		return normalize_chunk(trimmed.reshape(n_blocks, DOWNSAMPLE, raw_chunk.shape[1]).mean(axis=1).astype(np.float32))
-
-	if method == "none":
-		# Hurtig benchmark-metode uden anti-alias filtering.
-		return normalize_chunk(raw_chunk[::DOWNSAMPLE])
-
-	raise ValueError(f"unknown METHOD: {METHOD}. Use 'decimate', 'mean' or 'none'.")
-
-
 def collect_rhd_files(root_folder: str, shuffle: bool = False, seed: int | None = None) -> list[str]:
 	paths: list[str] = []
 	for root, dirs, files in os.walk(root_folder):
@@ -211,6 +186,75 @@ def trim_channels(data: np.ndarray, target_channels: int = TARGET_CHANNELS) -> n
 	return data[:, :target_channels]
 
 
+def maybe_downsample(raw_chunk: np.ndarray) -> np.ndarray:
+	factor = int(DOWNSAMPLE_BEFORE_FFT)
+	if factor <= 1:
+		return raw_chunk.astype(np.float32)
+
+	method = DOWNSAMPLE_METHOD.lower()
+	if method == "decimate":
+		return decimate(raw_chunk, factor, axis=0).astype(np.float32)
+
+	if method == "mean":
+		n_blocks = raw_chunk.shape[0] // factor
+		if n_blocks == 0:
+			return np.empty((0, raw_chunk.shape[1]), dtype=np.float32)
+		trimmed = raw_chunk[: n_blocks * factor]
+		return trimmed.reshape(n_blocks, factor, raw_chunk.shape[1]).mean(axis=1).astype(np.float32)
+
+	if method == "none":
+		return raw_chunk[::factor].astype(np.float32)
+
+	raise ValueError(
+		f"unknown DOWNSAMPLE_METHOD: {DOWNSAMPLE_METHOD}. Use 'decimate', 'mean' or 'none'."
+	)
+
+
+def preprocess_for_fft(chunk: np.ndarray) -> np.ndarray:
+	data = chunk.astype(np.float32)
+
+	if NORMALIZE:
+		# Normaliserer til ca. [-1, 1] fra signed int16 range.
+		data = data / 32768.0
+
+	if REMOVE_DC:
+		# Fjern DC-offset pr. kanal for at undgå stor 0 Hz-peak.
+		data = data - np.mean(data, axis=0, keepdims=True)
+
+	if APPLY_HANN_WINDOW:
+		window = np.hanning(data.shape[0]).astype(np.float32)
+		data = data * window[:, None]
+
+	return data
+
+
+def transform_channel(chunk: np.ndarray, fs: float) -> np.ndarray:
+	if FT == 0:
+		freqs = np.fft.rfftfreq(FFT_SIZE, d=1.0 / fs).astype(np.float32)
+		mag = np.abs(np.fft.rfft(chunk, n=FFT_SIZE)).astype(np.float32)
+		if MAX_FREQ_HZ is not None:
+			mag = mag[freqs <= float(MAX_FREQ_HZ)]
+		return mag
+
+	if FT == 1:
+		return np.abs(dct(chunk, type=2, norm="ortho")).astype(np.float32)
+
+	if FT == 2:
+		nperseg = min(256, chunk.size)
+		if nperseg < 2:
+			return np.empty((0,), dtype=np.float32)
+		noverlap = nperseg // 2
+		freqs, _, zxx = stft(chunk, fs=fs, nperseg=nperseg, noverlap=noverlap, boundary=None, padded=False)
+		if zxx.size == 0:
+			return np.empty((0,), dtype=np.float32)
+		mag = np.mean(np.abs(zxx), axis=1).astype(np.float32)
+		if MAX_FREQ_HZ is not None:
+			mag = mag[freqs <= float(MAX_FREQ_HZ)]
+		return mag
+
+	raise ValueError("FT must be 0 (FFT), 1 (DCT) or 2 (STFT).")
+
+
 def stream_rhd_file(
 	path: str,
 	ser: serial.Serial,
@@ -222,66 +266,79 @@ def stream_rhd_file(
 	replay_rng: random.Random | None,
 ) -> bool:
 	recording = se.read_intan(path, stream_id=STREAM_ID)
-	fs = recording.get_sampling_frequency()
+	raw_fs = float(recording.get_sampling_frequency())
 	n_samples = recording.get_num_samples()
 	n_channels = recording.get_num_channels()
 
-	print(f"Streaming: {path}")
-	print(f"Raw fs: {fs} Hz | channels: {n_channels} | samples: {n_samples}")
-	print(f"Method: {METHOD} | factor: {DOWNSAMPLE}")
+	if FT not in FT_NAMES:
+		raise ValueError(f"Invalid FT={FT}. Use 0, 1 or 2.")
 
-	raw_window = WINDOW_SIZE * DOWNSAMPLE
+	effective_fs = raw_fs / max(1, int(DOWNSAMPLE_BEFORE_FFT))
+	raw_window = FFT_SIZE * max(1, int(DOWNSAMPLE_BEFORE_FFT))
 	chunk_idx = 0
-	chunk_duration_s = WINDOW_SIZE / STREAM_RATE_HZ if STREAM_RATE_HZ > 0 else 0.0
+	chunk_duration_s = 1.0 / STREAM_RATE_HZ if STREAM_RATE_HZ > 0 else 0.0
+
+	print(f"Streaming {FT_NAMES[FT]}: {path}")
+	print(f"Raw fs: {raw_fs} Hz | channels: {n_channels} | samples: {n_samples}")
+	print(
+		f"FT: {FT_NAMES[FT]} | FFT_SIZE: {FFT_SIZE} | eff fs: {effective_fs} Hz | downsample: {DOWNSAMPLE_BEFORE_FFT} ({DOWNSAMPLE_METHOD})"
+	)
 
 	for raw_start in range(0, n_samples, raw_window):
 		raw_end = min(raw_start + raw_window, n_samples)
 		is_last_chunk = raw_end >= n_samples
 		raw_chunk = recording.get_traces(start_frame=raw_start, end_frame=raw_end)
 
-		# For korte chunks kan ikke decimeres stabilt
-		if raw_chunk.shape[0] < DOWNSAMPLE:
+		if raw_chunk.shape[0] < max(2, int(DOWNSAMPLE_BEFORE_FFT)):
 			continue
 
-		downsampled = resample_chunk(raw_chunk)
+		downsampled = maybe_downsample(raw_chunk)
 		downsampled = trim_channels(downsampled)
-		channel_data = downsampled.T  # [kanal, tid]
+		if downsampled.shape[0] < 2:
+			continue
 
-		if downsampled.shape[0] < MIN_PAYLOAD_SAMPLES:
+		if downsampled.shape[0] < FFT_SIZE:
+			if is_last_chunk:
+				# Tillad padding i sidste vindue, så vi ikke mister hale-data.
+				pad = np.zeros((FFT_SIZE - downsampled.shape[0], downsampled.shape[1]), dtype=np.float32)
+				downsampled = np.vstack([downsampled, pad])
+			else:
+				continue
+		elif downsampled.shape[0] > FFT_SIZE:
+			downsampled = downsampled[:FFT_SIZE]
+
+		prepared = preprocess_for_fft(downsampled)
+
+		if prepared.shape[0] < MIN_PAYLOAD_BINS:
 			if is_last_chunk:
 				print(
-					f"[END] Ignore last short payload: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} in {path}."
+					f"[END] Ignore last short spectrum: {prepared.shape[0]} < {MIN_PAYLOAD_BINS} in {path}."
 				)
 				break
 			print(
-				f"[SKIP] Payload too small: {downsampled.shape[0]} < {MIN_PAYLOAD_SAMPLES} samples in {path}."
+				f"[SKIP] Spectrum too small: {prepared.shape[0]} < {MIN_PAYLOAD_BINS} in {path}."
 			)
 			return False
 
+		channel_data = prepared.T  # [kanal, tid]
 		payload_batch = []
-		for ch_idx in range(channel_data.shape[0]):
-			chunk = channel_data[ch_idx]
-			if chunk.size == 0:
-				continue
 
-			if chunk.size < MIN_PAYLOAD_SAMPLES:
+		for ch_idx in range(channel_data.shape[0]):
+			bins = transform_channel(channel_data[ch_idx], fs=effective_fs)
+			if bins.size < MIN_PAYLOAD_BINS:
 				if is_last_chunk:
-					print(
-						f"[END] Ignore last short payload on channel {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} in {path}."
-					)
 					payload_batch = []
 					break
 				print(
-					f"[SKIP] Payload too small on channel {ch_idx + 1}: {chunk.size} < {MIN_PAYLOAD_SAMPLES} in {path}."
+					f"[SKIP] Spectrum too small on channel {ch_idx + 1}: {bins.size} < {MIN_PAYLOAD_BINS} in {path}."
 				)
 				return False
 
-			values = ",".join(str(x) for x in chunk)
+			values = ",".join(str(x) for x in bins)
 			if INCLUDE_CHANNEL_PREFIX:
 				line = f"ch{ch_idx + 1},{values}\n"
 			else:
 				line = values + "\n"
-
 			payload_batch.append(line)
 
 		maybe_send_replay_payload(
@@ -293,7 +350,7 @@ def stream_rhd_file(
 			epoch_idx=epoch_idx,
 			source=os.path.basename(path),
 			send_metadata=send_metadata,
-			feature_type="time",
+			feature_type=FT_NAMES[FT].lower(),
 			chunk_duration_s=chunk_duration_s,
 		)
 
@@ -305,7 +362,7 @@ def stream_rhd_file(
 			epoch_idx=epoch_idx,
 			source=os.path.basename(path),
 			chunk_idx=chunk_idx,
-			feature_type="time",
+			feature_type=FT_NAMES[FT].lower(),
 			is_replay=False,
 		)
 
@@ -315,8 +372,7 @@ def stream_rhd_file(
 		chunk_idx += 1
 
 		if STREAM_RATE_HZ > 0:
-			sent_samples = downsampled.shape[0]
-			time.sleep(sent_samples / STREAM_RATE_HZ)
+			time.sleep(1.0 / STREAM_RATE_HZ)
 
 	return True
 
@@ -343,7 +399,7 @@ try:
 			replay_rng=replay_rng,
 		)
 		if not success:
-			print("File skippet due to payload-size.")
+			print("File skippet pga. payload-size.")
 	else:
 		total_ok = 0
 		total_skipped = 0
@@ -355,7 +411,7 @@ try:
 			else:
 				print(f"Epoch {epoch_idx + 1}/{epoch_count}: streaming {len(file_paths)} files in deterministic order.")
 
-			for path in tqdm.tqdm(file_paths, desc=f"RHD files | epoch {epoch_idx + 1}"):
+			for path in tqdm.tqdm(file_paths, desc=f"RHD files (FFT) | epoch {epoch_idx + 1}"):
 				success = stream_rhd_file(
 					path,
 					ser=ser,
@@ -370,6 +426,6 @@ try:
 				else:
 					total_skipped += 1
 
-		print(f"Done. Streamed: {total_ok} | Skipped: {total_skipped}")
+		print(f"Done {FT_NAMES[FT]} stream. Streamed: {total_ok} | Skipped: {total_skipped}")
 finally:
 	ser.close()
