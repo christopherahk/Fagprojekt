@@ -27,6 +27,7 @@ DOWNSAMPLE = 100
 
 # vælg resampling-metode: "decimate", "mean" eller "none"
 METHOD = "decimate"
+NORMALIZE = True
 # "decimate" bruger anti-aliasing filer
 # "mean" tager gennemsnit over blokke
 # "none" tager hver N-te prøve uden filtrering
@@ -40,22 +41,31 @@ INCLUDE_CHANNEL_PREFIX = False
 STREAM_ID = "0"
 
 
+
 def resample_chunk(raw_chunk: np.ndarray) -> np.ndarray:
 	method = METHOD.lower()
 
+	def normalize_chunk(chunk: np.ndarray) -> np.ndarray:
+		chunk_f32 = chunk.astype(np.float32)
+		if NORMALIZE:
+			# Normaliserer til [-1, 1] baseret på 16-bit int range
+			return chunk_f32 / 32768.0
+		return chunk_f32
+
 	if method == "decimate":
-		return decimate(raw_chunk, DOWNSAMPLE, axis=0).astype(np.float32)
+		decichunk = decimate(raw_chunk, DOWNSAMPLE, axis=0).astype(np.float32)
+		return normalize_chunk(decichunk)
 
 	if method == "mean":
 		n_blocks = raw_chunk.shape[0] // DOWNSAMPLE
 		if n_blocks == 0:
 			return np.empty((0, raw_chunk.shape[1]), dtype=np.float32)
 		trimmed = raw_chunk[: n_blocks * DOWNSAMPLE]
-		return trimmed.reshape(n_blocks, DOWNSAMPLE, raw_chunk.shape[1]).mean(axis=1).astype(np.float32)
+		return normalize_chunk(trimmed.reshape(n_blocks, DOWNSAMPLE, raw_chunk.shape[1]).mean(axis=1).astype(np.float32))
 
 	if method == "none":
 		# Hurtig benchmark-metode uden anti-alias filtering.
-		return raw_chunk[::DOWNSAMPLE].astype(np.float32)
+		return normalize_chunk(raw_chunk[::DOWNSAMPLE])
 
 	raise ValueError(f"unknown METHOD: {METHOD}. Use 'decimate', 'mean' or 'none'.")
 
