@@ -3,6 +3,8 @@ import time
 import numpy as np
 import tqdm
 import os
+import random
+from collections import deque
 import spikeinterface.extractors as se
 from scipy.signal import decimate, stft
 from scipy.fft import dct
@@ -16,6 +18,28 @@ FT = 0
 FT_NAMES = {0: "FFT", 1: "DCT", 2: "STFT"}
 
 folder = "data"
+
+# Kørselstilstand:
+# - "supervised_warmup": tillader shuffle + flere epoker
+# - "live_online": kausal live-stream (ingen shuffle som default)
+MODE = "live_online"
+
+# Antal epoker bruges kun i supervised_warmup.
+EPOCHS = 3
+
+# Hvis True: blander rækkefølgen af .rhd-filer inden streaming.
+SHUFFLE_FILE_ORDER = False
+
+# Sæt til et heltal for reproducerbar shuffle (fx 42), eller None for ny shuffle hver kørsel.
+SHUFFLE_SEED = 1
+
+# Serial metadata før hver payload. Slå fra hvis Arduino-parser kun forventer rene tal-linjer.
+SEND_METADATA = False
+
+# Replay-buffer kan give mere stabil online-læring uden global shuffle.
+ENABLE_REPLAY_BUFFER = False
+REPLAY_BUFFER_SIZE = 32
+REPLAY_EVERY_N_CHUNKS = 8
 
 # Sæt til en .rhd-fil for at streame kun den ene fil.
 # fx:
@@ -47,12 +71,107 @@ INCLUDE_CHANNEL_PREFIX = False
 STREAM_ID = "0"
 
 
-def collect_rhd_files(root_folder: str) -> list[str]:
+def resolve_mode_settings() -> tuple[bool, int, bool]:
+	if MODE not in {"supervised_warmup", "live_online"}:
+		raise ValueError("MODE must be 'supervised_warmup' or 'live_online'.")
+
+	is_warmup = MODE == "supervised_warmup"
+	epoch_count = max(1, int(EPOCHS)) if is_warmup else 1
+	shuffle_enabled = bool(SHUFFLE_FILE_ORDER) if is_warmup else False
+	return is_warmup, epoch_count, shuffle_enabled
+
+
+def make_metadata_line(
+	*,
+	mode: str,
+	epoch_idx: int,
+	source: str,
+	chunk_idx: int,
+	feature_type: str,
+	is_replay: bool,
+) -> str:
+	flag = 1 if is_replay else 0
+	return (
+		f"#META,mode={mode},epoch={epoch_idx},source={source},chunk={chunk_idx},"
+		f"feature={feature_type},replay={flag}\n"
+	)
+
+
+def write_payload(
+	ser: serial.Serial,
+	payload_batch: list[str],
+	*,
+	send_metadata: bool,
+	mode: str,
+	epoch_idx: int,
+	source: str,
+	chunk_idx: int,
+	feature_type: str,
+	is_replay: bool,
+) -> None:
+	if send_metadata:
+		meta_line = make_metadata_line(
+			mode=mode,
+			epoch_idx=epoch_idx,
+			source=source,
+			chunk_idx=chunk_idx,
+			feature_type=feature_type,
+			is_replay=is_replay,
+		)
+		ser.write(meta_line.encode("utf-8"))
+
+	for line in payload_batch:
+		ser.write(line.encode("utf-8"))
+
+
+def maybe_send_replay_payload(
+	*,
+	ser: serial.Serial,
+	replay_buffer: deque[list[str]] | None,
+	replay_rng: random.Random | None,
+	chunk_idx: int,
+	mode: str,
+	epoch_idx: int,
+	source: str,
+	send_metadata: bool,
+	feature_type: str,
+	chunk_duration_s: float,
+) -> None:
+	if mode != "live_online" or replay_buffer is None or replay_rng is None:
+		return
+	if REPLAY_EVERY_N_CHUNKS <= 0 or len(replay_buffer) == 0:
+		return
+	if chunk_idx == 0 or (chunk_idx % REPLAY_EVERY_N_CHUNKS) != 0:
+		return
+
+	replay_payload = replay_rng.choice(list(replay_buffer))
+	write_payload(
+		ser,
+		replay_payload,
+		send_metadata=send_metadata,
+		mode=mode,
+		epoch_idx=epoch_idx,
+		source=source,
+		chunk_idx=chunk_idx,
+		feature_type=feature_type,
+		is_replay=True,
+	)
+	if STREAM_RATE_HZ > 0 and chunk_duration_s > 0:
+		time.sleep(chunk_duration_s)
+
+
+def collect_rhd_files(root_folder: str, shuffle: bool = False, seed: int | None = None) -> list[str]:
 	paths: list[str] = []
-	for root, _, files in os.walk(root_folder):
+	for root, dirs, files in os.walk(root_folder):
+		dirs.sort()
 		rhd_files = [f for f in sorted(files) if f.endswith(".rhd")]
 		for file in rhd_files:
 			paths.append(os.path.join(root, file))
+
+	if shuffle:
+		rng = random.Random(seed)
+		rng.shuffle(paths)
+
 	return paths
 
 
@@ -125,7 +244,16 @@ def transform_channel(chunk: np.ndarray, fs: float) -> np.ndarray:
 	raise ValueError("FT must be 0 (FFT), 1 (DCT) or 2 (STFT).")
 
 
-def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
+def stream_rhd_file(
+	path: str,
+	ser: serial.Serial,
+	*,
+	mode: str,
+	epoch_idx: int,
+	send_metadata: bool,
+	replay_buffer: deque[list[str]] | None,
+	replay_rng: random.Random | None,
+) -> bool:
 	recording = se.read_intan(path, stream_id=STREAM_ID)
 	raw_fs = float(recording.get_sampling_frequency())
 	n_samples = recording.get_num_samples()
@@ -136,6 +264,8 @@ def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 
 	effective_fs = raw_fs / max(1, int(DOWNSAMPLE_BEFORE_FFT))
 	raw_window = FFT_SIZE * max(1, int(DOWNSAMPLE_BEFORE_FFT))
+	chunk_idx = 0
+	chunk_duration_s = 1.0 / STREAM_RATE_HZ if STREAM_RATE_HZ > 0 else 0.0
 
 	print(f"Streaming {FT_NAMES[FT]}: {path}")
 	print(f"Raw fs: {raw_fs} Hz | channels: {n_channels} | samples: {n_samples}")
@@ -199,8 +329,35 @@ def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 				line = values + "\n"
 			payload_batch.append(line)
 
-		for line in payload_batch:
-			ser.write(line.encode("utf-8"))
+		maybe_send_replay_payload(
+			ser=ser,
+			replay_buffer=replay_buffer,
+			replay_rng=replay_rng,
+			chunk_idx=chunk_idx,
+			mode=mode,
+			epoch_idx=epoch_idx,
+			source=os.path.basename(path),
+			send_metadata=send_metadata,
+			feature_type=FT_NAMES[FT].lower(),
+			chunk_duration_s=chunk_duration_s,
+		)
+
+		write_payload(
+			ser,
+			payload_batch,
+			send_metadata=send_metadata,
+			mode=mode,
+			epoch_idx=epoch_idx,
+			source=os.path.basename(path),
+			chunk_idx=chunk_idx,
+			feature_type=FT_NAMES[FT].lower(),
+			is_replay=False,
+		)
+
+		if replay_buffer is not None:
+			replay_buffer.append(list(payload_batch))
+
+		chunk_idx += 1
 
 		if STREAM_RATE_HZ > 0:
 			time.sleep(1.0 / STREAM_RATE_HZ)
@@ -210,19 +367,52 @@ def stream_rhd_file(path: str, ser: serial.Serial) -> bool:
 
 ser = serial.Serial(SERIAL_PORT, BAUD_RATE)
 try:
+	is_warmup, epoch_count, shuffle_enabled = resolve_mode_settings()
+	replay_buffer = deque(maxlen=REPLAY_BUFFER_SIZE) if ENABLE_REPLAY_BUFFER else None
+	replay_rng = random.Random(SHUFFLE_SEED) if ENABLE_REPLAY_BUFFER else None
+
+	print(
+		f"Mode={MODE} | epochs={epoch_count} | shuffle={shuffle_enabled} | "
+		f"replay={ENABLE_REPLAY_BUFFER}"
+	)
+
 	if RHD_FILE is not None:
-		success = stream_rhd_file(RHD_FILE, ser=ser)
+		success = stream_rhd_file(
+			RHD_FILE,
+			ser=ser,
+			mode=MODE,
+			epoch_idx=0,
+			send_metadata=SEND_METADATA,
+			replay_buffer=replay_buffer,
+			replay_rng=replay_rng,
+		)
 		if not success:
 			print("File skippet pga. payload-size.")
 	else:
 		total_ok = 0
 		total_skipped = 0
-		for path in tqdm.tqdm(collect_rhd_files(folder), desc="RHD files (FFT)"):
-			success = stream_rhd_file(path, ser=ser)
-			if success:
-				total_ok += 1
+		for epoch_idx in range(epoch_count):
+			epoch_seed = None if SHUFFLE_SEED is None else SHUFFLE_SEED + epoch_idx
+			file_paths = collect_rhd_files(folder, shuffle=shuffle_enabled, seed=epoch_seed)
+			if shuffle_enabled:
+				print(f"Epoch {epoch_idx + 1}/{epoch_count}: shuffled {len(file_paths)} files (seed={epoch_seed}).")
 			else:
-				total_skipped += 1
+				print(f"Epoch {epoch_idx + 1}/{epoch_count}: streaming {len(file_paths)} files in deterministic order.")
+
+			for path in tqdm.tqdm(file_paths, desc=f"RHD files (FFT) | epoch {epoch_idx + 1}"):
+				success = stream_rhd_file(
+					path,
+					ser=ser,
+					mode=MODE,
+					epoch_idx=epoch_idx,
+					send_metadata=SEND_METADATA,
+					replay_buffer=replay_buffer,
+					replay_rng=replay_rng,
+				)
+				if success:
+					total_ok += 1
+				else:
+					total_skipped += 1
 
 		print(f"Done {FT_NAMES[FT]} stream. Streamed: {total_ok} | Skipped: {total_skipped}")
 finally:
