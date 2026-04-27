@@ -36,14 +36,19 @@ jobs:
 
       - name: Static Analysis (clang-tidy)
         run: |
-          # Use -p build_dir so clang-tidy finds the compile_commands.json
-          # We also exclude the build_dir from the 'find' command
+          # 1. Ask the Arduino-installed GCC where its system headers are
+          # This finds the arm-none-eabi-gcc and extracts its default include paths
+          COMPILER_PATH=$(find /home/runner/.arduino15 -name "arm-none-eabi-gcc" | head -n 1)
+          SYSTEM_INCLUDES=$($COMPILER_PATH -E -v -xc++ /dev/null 2>&1 | sed -n '/#include <...>/,/End of search list./p' | grep '^ ' | sed 's/^ /-isystem /' | tr '\n' ' ')
+
+          # 2. Run clang-tidy using those system includes
           find . -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" \) \
             -not -path "./.git/*" \
             -not -path "./tests/*" \
             -not -path "./build_dir/*" \
             -not -name "Tensor.cpp" -print0 | \
-            xargs -0 -r clang-tidy -p build_dir --warnings-as-errors='*'
+            xargs -0 -r clang-tidy -p build_dir --warnings-as-errors='*' \
+            --extra-arg="$SYSTEM_INCLUDES"
 
       - name: Static Analysis (cppcheck)
         run: |
