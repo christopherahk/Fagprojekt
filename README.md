@@ -93,8 +93,8 @@ powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode status
 powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode loocv
 powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode classic
 ```
-
 What each mode means:
+
 
 - `classic`: normal streaming/training flow via `streaming.cpp`.
 - `loocv`: LOOCV test flow for `python_files/loocv_coordinator.py`.
