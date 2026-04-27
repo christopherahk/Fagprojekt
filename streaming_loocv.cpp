@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(STREAMING_USE_LOOCV)
+
 namespace {
 const int kInputRows = 56;
 const int kInputCols = 100;
@@ -477,3 +479,5 @@ void report_fold_results() {
   }
   Serial.println();
 }
+
+#endif // STREAMING_USE_LOOCV

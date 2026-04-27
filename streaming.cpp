@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(STREAMING_USE_LOOCV)
+
 namespace {
 const int kInputRows = 56;
 const int kInputCols = 100;
@@ -351,3 +353,5 @@ void set_input_empty() {
   gLabelWaitStartMs = 0;
   gCurrentRow = 0;
 }
+
+#endif // !STREAMING_USE_LOOCV

@@ -3,102 +3,87 @@ param(
     [string]$Mode = "status"
 )
 
+<#
+.SYNOPSIS
+Switch between classic and LOOCV streaming modes for the Arduino sketch.
+
+.DESCRIPTION
+Both streaming implementations (streaming.cpp and streaming_loocv.cpp) are kept in the repository.
+They use compile-time guards (#if STREAMING_USE_LOOCV) to ensure only one set of symbols is compiled.
+
+This script helps you understand which mode is active and documents the compile process.
+
+.EXAMPLE
+.\switch_mode.ps1 -Mode status          # Show current mode info
+.\switch_mode.ps1 -Mode classic         # Prepare instructions for classic build
+.\switch_mode.ps1 -Mode loocv           # Prepare instructions for LOOCV build
+#>
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-$activeFile = Join-Path $root "streaming.cpp"
-$classicDisabledFile = Join-Path $root "streaming_classic.cpp.disabled"
+$classicFile = Join-Path $root "streaming.cpp"
 $loocvFile = Join-Path $root "streaming_loocv.cpp"
-$loocvDisabledFile = Join-Path $root "streaming_loocv.cpp.disabled"
 
 function Get-ActiveMode {
-    if (-not (Test-Path $activeFile)) {
-        return "none"
+    # Check which file's content is "active" by reading guards.
+    if (-not (Test-Path $classicFile)) {
+        return "unknown"
     }
 
-    $head = Get-Content -Path $activeFile -TotalCount 200 -Raw
-    if ($head -match "START_FOLD|GET_RESULTS|report_fold_results") {
-        return "loocv"
+    $content = Get-Content -Path $classicFile -Raw
+    if ($content -match "^\s*#\s*if\s+!defined\s*\(\s*STREAMING_USE_LOOCV\s*\)") {
+        return "classic (default)"
     }
 
-    return "classic"
-}
-
-function Rename-InRoot {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$SourcePath,
-        [Parameter(Mandatory = $true)]
-        [string]$TargetPath
-    )
-
-    if (-not (Test-Path $SourcePath)) {
-        throw "Source file not found: $SourcePath"
-    }
-
-    if (Test-Path $TargetPath) {
-        throw "Target file already exists: $TargetPath"
-    }
-
-    Rename-Item -Path $SourcePath -NewName (Split-Path -Leaf $TargetPath)
+    return "unknown"
 }
 
 function Show-Status {
-    $activeMode = Get-ActiveMode
-    Write-Host "Active mode: $activeMode"
-    Write-Host "Files:"
-    Write-Host "  streaming.cpp                : $((Test-Path $activeFile))"
-    Write-Host "  streaming_classic.cpp.disabled: $((Test-Path $classicDisabledFile))"
-    Write-Host "  streaming_loocv.cpp          : $((Test-Path $loocvFile))"
-    Write-Host "  streaming_loocv.cpp.disabled : $((Test-Path $loocvDisabledFile))"
+    $mode = Get-ActiveMode
+    Write-Host ""
+    Write-Host "=== Streaming Mode Status ===" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Current setup: $mode"
+    Write-Host ""
+    Write-Host "Files present:"
+    Write-Host "  streaming.cpp       : $((Test-Path $classicFile))"
+    Write-Host "  streaming_loocv.cpp : $((Test-Path $loocvFile))"
+    Write-Host ""
+    Write-Host "Both files use compile-time guards (#if STREAMING_USE_LOOCV),"
+    Write-Host "so only one set of symbols is compiled at a time."
+    Write-Host ""
 }
 
-function Switch-ToLoocv {
-    $activeMode = Get-ActiveMode
-    if ($activeMode -eq "loocv") {
-        Write-Host "Already in loocv mode."
-        return
-    }
-
-    if ($activeMode -eq "classic") {
-        Rename-InRoot -SourcePath $activeFile -TargetPath $classicDisabledFile
-    }
-
-    if (Test-Path $loocvFile) {
-        Rename-InRoot -SourcePath $loocvFile -TargetPath $activeFile
-        Write-Host "Switched to loocv mode."
-        return
-    }
-
-    if (Test-Path $loocvDisabledFile) {
-        Rename-InRoot -SourcePath $loocvDisabledFile -TargetPath $activeFile
-        Write-Host "Switched to loocv mode."
-        return
-    }
-
-    throw "No LOOCV implementation found. Expected streaming_loocv.cpp or streaming_loocv.cpp.disabled"
+function Show-ClassicInstructions {
+    Write-Host ""
+    Write-Host "=== Building in Classic Mode ===" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Compile without the LOOCV flag:"
+    Write-Host ""
+    Write-Host "arduino-cli compile --fqbn arduino:mbed_nano:nano33ble ."
+    Write-Host ""
+    Write-Host "Or in Arduino IDE: just compile/upload normally."
+    Write-Host ""
+    Write-Host "This includes streaming.cpp and uses regular streaming flow."
+    Write-Host ""
 }
 
-function Switch-ToClassic {
-    $activeMode = Get-ActiveMode
-    if ($activeMode -eq "classic") {
-        Write-Host "Already in classic mode."
-        return
-    }
-
-    if ($activeMode -eq "loocv") {
-        Rename-InRoot -SourcePath $activeFile -TargetPath $loocvDisabledFile
-    }
-
-    if (Test-Path $classicDisabledFile) {
-        Rename-InRoot -SourcePath $classicDisabledFile -TargetPath $activeFile
-        Write-Host "Switched to classic mode."
-        return
-    }
-
-    throw "No classic implementation found. Expected streaming_classic.cpp.disabled"
+function Show-LoocvInstructions {
+    Write-Host ""
+    Write-Host "=== Building in LOOCV Mode ===" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Compile WITH the LOOCV flag:"
+    Write-Host ""
+    Write-Host "arduino-cli compile --fqbn arduino:mbed_nano:nano33ble \"
+    Write-Host "  --build-property compiler.cpp.extra_flags=""-DSTREAMING_USE_LOOCV"" ."
+    Write-Host ""
+    Write-Host "Or in Arduino IDE: you would need to add the flag to your build configuration."
+    Write-Host ""
+    Write-Host "This activates streaming_loocv.cpp and uses LOOCV test flow."
+    Write-Host "After upload, run: python python_files/loocv_coordinator.py"
+    Write-Host ""
 }
 
 switch ($Mode) {
@@ -106,11 +91,9 @@ switch ($Mode) {
         Show-Status
     }
     "classic" {
-        Switch-ToClassic
-        Show-Status
+        Show-ClassicInstructions
     }
     "loocv" {
-        Switch-ToLoocv
-        Show-Status
+        Show-LoocvInstructions
     }
 }
