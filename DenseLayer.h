@@ -15,7 +15,7 @@ struct DenseLayer { // i am dense
 
   DenseLayer(int inputCount, int neuronCount);
 
-  void forward(const Tensor &x) void backward(
-      const Tensor &dValues,
-      bool computeDInputs = true) void update(float learningRate)
+  void forward(const Tensor &x);
+  void backward(const Tensor &dValues, bool computeDInputs = true);
+  void update(float learningRate);
 };

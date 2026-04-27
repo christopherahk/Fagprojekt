@@ -1,6 +1,11 @@
 #include "DenseLayer.h"
 #include "Tensor.h"
 #include <Arduino.h>
+#include <math.h>
+
+namespace {
+const float kGradClipLimit = 100.0f;
+}
 
 float clampValue(float x,
                  float limit) { // Makes sure x is between -limit and limit to
@@ -53,7 +58,7 @@ void DenseLayer::forward(const Tensor &x) {
   }
 }
 
-void DenseLayer::backward(const Tensor &dValues, bool computeDInputs = true) {
+void DenseLayer::backward(const Tensor &dValues, bool computeDInputs) {
   if (inputs == nullptr) {
     // If backward is called before forward,
     // we can't compute gradients, so we just return.
@@ -109,14 +114,22 @@ void DenseLayer::update(
                           // clipping to prevent exploding gradients.
   for (int r = 0; r < weights.rows; r++) {
     for (int c = 0; c < weights.cols; c++) {
-      float grad = clampValue(dWeights(r, c), GRAD_CLIP);
+      float grad = dWeights(r, c);
+      if (!isfinite(grad)) {
+        grad = 0.0f;
+      }
+      grad = clampValue(grad, kGradClipLimit);
       weights(r, c) -= learningRate * grad;
     }
   }
 
   for (int c = 0; c < biases.cols;
        c++) { // Update biases with gradient clipping.
-    float grad = clampValue(dBiases(0, c), GRAD_CLIP);
+    float grad = dBiases(0, c);
+    if (!isfinite(grad)) {
+      grad = 0.0f;
+    }
+    grad = clampValue(grad, kGradClipLimit);
     biases(0, c) -= learningRate * grad;
   }
 };

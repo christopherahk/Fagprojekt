@@ -30,6 +30,9 @@ SHUFFLE_SEED = 1
 # Serial metadata før hver payload. Slå fra hvis Arduino-parser kun forventer rene tal-linjer.
 SEND_METADATA = False
 
+# Hvis True: sender one-hot label-linje efter hver 56-kanals frame.
+SEND_LABELS = False
+
 # Replay-buffer kan give mere stabil online-læring uden global shuffle.
 ENABLE_REPLAY_BUFFER = False
 REPLAY_BUFFER_SIZE = 32
@@ -68,6 +71,12 @@ INCLUDE_CHANNEL_PREFIX = False
 
 # hvilket Intan stream-id der skal bruges. vores amp er "0"
 STREAM_ID = "0"
+
+CLASS_TO_INDEX = {
+	"DORSIFLEXION": 0,
+	"PLANTARFLEXION": 1,
+	"PRICKING": 2,
+}
 
 
 def resolve_mode_settings() -> tuple[bool, int, bool]:
@@ -121,6 +130,40 @@ def write_payload(
 
 	for line in payload_batch:
 		ser.write(line.encode("utf-8"))
+
+
+def infer_one_hot_label(path: str) -> list[int] | None:
+	upper_path = path.upper()
+	for class_name, class_index in CLASS_TO_INDEX.items():
+		if class_name in upper_path:
+			one_hot = [0, 0, 0]
+			one_hot[class_index] = 1
+			return one_hot
+	return None
+
+
+def maybe_send_label(ser: serial.Serial, path: str) -> None:
+	if not SEND_LABELS:
+		return
+
+	one_hot = infer_one_hot_label(path)
+	if one_hot is None:
+		print(f"[LABEL_SKIP] No class mapping found for {path}")
+		return
+
+	label_line = ",".join(str(v) for v in one_hot) + "\n"
+	ser.write(label_line.encode("utf-8"))
+
+
+def drain_serial_responses(ser: serial.Serial) -> None:
+	while ser.in_waiting > 0:
+		response = ser.readline()
+		if not response:
+			break
+		try:
+			print(response.decode("utf-8", errors="replace").rstrip())
+		except Exception:
+			print(response)
 
 
 def maybe_send_replay_payload(
@@ -308,6 +351,8 @@ def stream_rhd_file(
 			feature_type="time",
 			is_replay=False,
 		)
+		maybe_send_label(ser, path)
+		drain_serial_responses(ser)
 
 		if replay_buffer is not None:
 			replay_buffer.append(list(payload_batch))
@@ -321,7 +366,7 @@ def stream_rhd_file(
 	return True
 
 
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE)
+ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=0)
 try:
 	is_warmup, epoch_count, shuffle_enabled = resolve_mode_settings()
 	replay_buffer = deque(maxlen=REPLAY_BUFFER_SIZE) if ENABLE_REPLAY_BUFFER else None
