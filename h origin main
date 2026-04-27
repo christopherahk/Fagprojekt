@@ -1,0 +1,17 @@
+[33mcommit 12a1e77b37049d0d5d04e3196e7265863cb23d21[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/fix[m[33m, [m[1;32mfix[m[33m)[m
+Author: Ro Nanak Prasad Lacoul <nanaklacoulbus@gmail.com>
+Date:   Mon Apr 27 20:54:42 2026 +0200
+
+    Add compile-time mode switching to fix link conflicts
+    
+    - Guard streaming.cpp with #if !defined(STREAMING_USE_LOOCV)
+    - Guard streaming_loocv.cpp with #if defined(STREAMING_USE_LOOCV)
+    - CI now builds both classic and LOOCV modes to prevent regressions
+    - Updated switch_mode.ps1 to show build instructions
+    - Updated README with compile flag documentation
+
+M	.github/workflows/linting.yaml
+M	README.md
+M	streaming.cpp
+M	streaming_loocv.cpp
+M	switch_mode.ps1
