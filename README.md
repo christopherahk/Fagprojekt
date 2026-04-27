@@ -43,6 +43,7 @@ Dependencies declared in `pyproject.toml`:
 - `matplotlib`
 - `pyserial`
 
+
 ## Python Setup
 
 Using `uv` (recommended when `uv.lock` is present):
@@ -80,6 +81,26 @@ If scripts expect local input files, ensure required files are available in `dat
 4. Open serial monitor at `115200` baud.
 
 The sketch is designed around frame-based serial input and can output predictions/probabilities in a comma-separated status format.
+
+## Switching Between Classic And LOOCV Modes
+
+Use the mode switch script in the repository root: `switch_mode.ps1`.
+
+Run these commands from the project root folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode status
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode loocv
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode classic
+```
+
+What each mode means:
+
+- `classic`: normal streaming/training flow via `streaming.cpp`.
+- `loocv`: LOOCV test flow for `python_files/loocv_coordinator.py`.
+- `status`: prints which mode is active and which files are present.
+
+After switching mode, rebuild and upload the sketch to the Arduino.
 
 ## Testing
 
