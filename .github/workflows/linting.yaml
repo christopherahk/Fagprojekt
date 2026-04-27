@@ -43,10 +43,10 @@ jobs:
             -not -name "Tensor.cpp" -print0 | \
             xargs -0 -r clang-tidy -p build_dir \
             --warnings-as-errors='*' \
+            --extra-arg=-fallow-unknown-anytype \
             --extra-arg=-Wno-unknown-pragmas \
             --extra-arg=-Wno-error=unknown-attributes \
-            --extra-arg=-fms-extensions \
-            -- -fallow-unknown-anytype
+            --extra-arg=-fms-extensions
 
       - name: Static Analysis (cppcheck)
         run: |
