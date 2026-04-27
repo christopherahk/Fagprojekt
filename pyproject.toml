@@ -9,5 +9,8 @@ dependencies = [
     "numpy>=2.2.0",
     "pandas>=2.2.0",
     "pre-commit>=4.5.1",
+    "pyserial>=3.5",
+    "scipy>=1.17.1",
+    "spikeinterface>=0.104.2",
     "tqdm>=4.67.0",
 ]
