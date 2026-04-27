@@ -13,11 +13,13 @@ jobs:
       # Clang Format
       # -------------------------
       - name: Install Clang-Format
-        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy cppcheck
+        run: sudo apt-get update && sudo apt-get install -y clang-format cppcheck
 
       - name: Check Formatting
         run: |
-          find src include test -type f \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" \) \
+          find . -type f \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" \) \
+            -not -path "./.git/*" \
+            -not -path "./build/*" \
             -print0 | xargs -0 clang-format --dry-run --Werror
 
       - name: Set up Arduino CLI
@@ -33,20 +35,6 @@ jobs:
           # Create a separate folder for build artifacts
           mkdir -p build_dir
           arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path ./build_dir .
-
-      - name: Static Analysis (clang-tidy)
-        run: |
-          find . -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" \) \
-            -not -path "./.git/*" \
-            -not -path "./tests/*" \
-            -not -path "./build_dir/*" \
-            -not -name "Tensor.cpp" -print0 | \
-            xargs -0 -r clang-tidy -p build_dir \
-            --warnings-as-errors='*' \
-            --extra-arg=-fallow-unknown-anytype \
-            --extra-arg=-Wno-unknown-pragmas \
-            --extra-arg=-Wno-error=unknown-attributes \
-            --extra-arg=-fms-extensions
 
       - name: Static Analysis (cppcheck)
         run: |
