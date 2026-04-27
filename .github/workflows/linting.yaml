@@ -30,17 +30,20 @@ jobs:
 
       - name: Compile Sketch (Arduino CLI)
         run: |
-          # The --build-path . flag tells it to put the compile_commands.json in the current dir
-          arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path . .
+          # Create a separate folder for build artifacts
+          mkdir -p build_dir
+          arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path ./build_dir .
 
       - name: Static Analysis (clang-tidy)
         run: |
-          # Clang-tidy will now automatically see 'compile_commands.json' in the current directory
+          # Use -p build_dir so clang-tidy finds the compile_commands.json
+          # We also exclude the build_dir from the 'find' command
           find . -type f \( -name "*.cpp" -o -name "*.cc" -o -name "*.c" \) \
             -not -path "./.git/*" \
             -not -path "./tests/*" \
+            -not -path "./build_dir/*" \
             -not -name "Tensor.cpp" -print0 | \
-            xargs -0 -r clang-tidy --warnings-as-errors='*'
+            xargs -0 -r clang-tidy -p build_dir --warnings-as-errors='*'
 
       - name: Static Analysis (cppcheck)
         run: |
