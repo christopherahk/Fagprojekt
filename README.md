@@ -84,23 +84,49 @@ The sketch is designed around frame-based serial input and can output prediction
 
 ## Switching Between Classic And LOOCV Modes
 
-Use the mode switch script in the repository root: `switch_mode.ps1`.
+Both `streaming.cpp` and `streaming_loocv.cpp` exist in the repository. They use C++ preprocessor guards to ensure only one implementation is compiled at a time:
 
-Run these commands from the project root folder:
+- `streaming.cpp` is guarded with `#if !defined(STREAMING_USE_LOOCV)`
+- `streaming_loocv.cpp` is guarded with `#if defined(STREAMING_USE_LOOCV)`
+
+### Classic Mode (Default)
+
+Compile normally without any special flags:
+
+```bash
+arduino-cli compile --fqbn arduino:mbed_nano:nano33ble .
+```
+
+Or in Arduino IDE: just build and upload as usual. This uses `streaming.cpp` and provides regular streaming/training flow.
+
+### LOOCV Mode
+
+Compile with the `-DSTREAMING_USE_LOOCV` flag:
+
+```bash
+arduino-cli compile --fqbn arduino:mbed_nano:nano33ble \
+  --build-property compiler.cpp.extra_flags="-DSTREAMING_USE_LOOCV" .
+```
+
+This activates `streaming_loocv.cpp` for Leave-One-Out Cross-Validation testing. After upload, run:
+
+```bash
+python python_files/loocv_coordinator.py
+```
+
+### Helper Script
+
+You can use `switch_mode.ps1` to view compile instructions:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode status
-powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode loocv
-powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode classic
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode status    # Show current setup
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode classic   # Show classic build instructions
+powershell -ExecutionPolicy Bypass -File .\switch_mode.ps1 -Mode loocv     # Show LOOCV build instructions
 ```
-What each mode means:
 
+### CI/CD
 
-- `classic`: normal streaming/training flow via `streaming.cpp`.
-- `loocv`: LOOCV test flow for `python_files/loocv_coordinator.py`.
-- `status`: prints which mode is active and which files are present.
-
-After switching mode, rebuild and upload the sketch to the Arduino.
+The GitHub Actions workflow automatically builds both modes to catch regressions in either implementation.
 
 ## Testing
 

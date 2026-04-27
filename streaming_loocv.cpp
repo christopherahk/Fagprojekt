@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(STREAMING_USE_LOOCV)
+
 namespace {
 const int kInputRows = 56;
 const int kInputCols = 100;
@@ -116,7 +118,7 @@ bool parseFeatureRowInto(const String &line, int row) {
 
   int col = 0;
   char *context = nullptr;
-  char *token = strtok_r(buffer, ",", &context);
+  const char *token = strtok_r(buffer, ",", &context);
   if (token != nullptr && strlen(token) >= 2 &&
       ((token[0] == 'c' || token[0] == 'C') &&
        (token[1] == 'h' || token[1] == 'H'))) {
@@ -148,7 +150,7 @@ bool parseOneHotLabel(const String &line) {
   int count = 0;
 
   char *context = nullptr;
-  char *token = strtok_r(buffer, ",", &context);
+  const char *token = strtok_r(buffer, ",", &context);
   if (token == nullptr) {
     return false;
   }
@@ -477,3 +479,5 @@ void report_fold_results() {
   }
   Serial.println();
 }
+
+#endif // STREAMING_USE_LOOCV

@@ -36,6 +36,13 @@ jobs:
           mkdir -p build_dir
           arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path ./build_dir .
 
+      - name: Compile Sketch (Arduino CLI, LOOCV mode)
+        run: |
+          mkdir -p build_dir_loocv
+          arduino-cli compile --fqbn arduino:mbed_nano:nano33ble \
+            --build-path ./build_dir_loocv \
+            --build-property compiler.cpp.extra_flags="-DSTREAMING_USE_LOOCV" .
+
       - name: Static Analysis (cppcheck)
         run: |
           cppcheck --enable=warning,style,performance,portability --error-exitcode=1 \
