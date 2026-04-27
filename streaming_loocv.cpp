@@ -1,8 +1,8 @@
 
 // How to use (LOOCV test firmware):
-// 1) Compile this file as the active streaming implementation with Fagprojekt.ino.
-// 2) Open serial at 115200 and confirm it prints NET_READY.
-// 3) Run python_files/loocv_coordinator.py to send START_FOLD/START_EVAL commands.
+// 1) Compile this file as the active streaming implementation with
+// Fagprojekt.ino. 2) Open serial at 115200 and confirm it prints NET_READY. 3)
+// Run python_files/loocv_coordinator.py to send START_FOLD/START_EVAL commands.
 // 4) Firmware replies with RESULT,... and CONFUSION,... lines per fold.
 
 #include "streaming.h"
