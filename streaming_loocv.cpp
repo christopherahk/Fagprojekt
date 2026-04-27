@@ -118,7 +118,7 @@ bool parseFeatureRowInto(const String &line, int row) {
 
   int col = 0;
   char *context = nullptr;
-  char *token = strtok_r(buffer, ",", &context);
+  const char *token = strtok_r(buffer, ",", &context);
   if (token != nullptr && strlen(token) >= 2 &&
       ((token[0] == 'c' || token[0] == 'C') &&
        (token[1] == 'h' || token[1] == 'H'))) {
@@ -150,7 +150,7 @@ bool parseOneHotLabel(const String &line) {
   int count = 0;
 
   char *context = nullptr;
-  char *token = strtok_r(buffer, ",", &context);
+  const char *token = strtok_r(buffer, ",", &context);
   if (token == nullptr) {
     return false;
   }
