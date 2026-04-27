@@ -2,7 +2,7 @@
 #include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
 
-struct Activation_Softmax_CategoricalCrossEntropy {
+struct GetLoss {
   Softmax activation;
   CategoricalCrossEntropyLoss loss;
 
