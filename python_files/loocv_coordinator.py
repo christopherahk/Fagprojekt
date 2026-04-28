@@ -12,6 +12,9 @@ How to use:
 2) Ensure the board prints NET_READY on serial startup.
 3) Run this script with the correct serial port.
 4) After completion, inspect analysis_outputs/loocv_results.json.
+95% confidence interval for accuracy
+95% confidence interval for loss
+One-sided p-værdi for accuracy vs chance baseline (1/3) med one-sample t-test
 """
 import argparse
 import json

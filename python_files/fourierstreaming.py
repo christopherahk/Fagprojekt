@@ -16,6 +16,9 @@ BAUD_RATE = 115200
 # 0 = FFT, 1 = DCT, 2 = STFT
 FT = 0
 FT_NAMES = {0: "FFT", 1: "DCT", 2: "STFT"}
+# FFT = fast fourier transform
+# DCT = discrete cosine transform
+# STFT = short-time fourier transform (med overlap)
 
 folder = "data"
 
