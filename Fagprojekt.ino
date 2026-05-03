@@ -25,7 +25,7 @@ GetLoss getLoss;
 
 void get_data() {
   int received = 0;
-  uint8_t *buf = (uint8_t *)values;
+  uint8_t *buf = reinterpret_cast<uint8_t *>(values);
   int chunk_count = 0;
 
   while (received < BYTES_NEEDED) {
@@ -58,7 +58,7 @@ void get_data() {
   Serial.println("TRAIN");
 }
 
-void processWindow(float *data, int label[N_CLASSES]) {
+void processWindow(const float *data, const int label[N_CLASSES]) {
   Tensor input(1, INPUT_SIZE);
   for (int i = 0; i < INPUT_SIZE; i++)
     input.data[i] = data[i];
