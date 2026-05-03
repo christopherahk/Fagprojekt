@@ -54,7 +54,7 @@ thumbs.db
 # Other files
 compile_commands.json
 data/*
-python_files/intanutil/*
+python_files/intanutil/
 load_intan_rhd_format.py
 
 # pre commit

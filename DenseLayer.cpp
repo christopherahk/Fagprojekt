@@ -7,9 +7,7 @@ namespace {
 const float kGradClipLimit = 100.0f;
 }
 
-float clampValue(float x,
-                 float limit) { // Makes sure x is between -limit and limit to
-                                // prevent exploding gradients.
+static float clampValue(float x, float limit) {
   if (x > limit) {
     return limit;
   }
@@ -19,78 +17,68 @@ float clampValue(float x,
   return x;
 }
 
-void ensureTensorShape(Tensor &t, int rows,
-                       int cols) { // Ensures the tensor has the specified
-                                   // shape, reallocating if necessary.
-  if (t.rows != rows || t.cols != cols) { // if the shape is different
-    t = Tensor(rows, cols);               // reallocate to the new shape
+static void ensureTensorShape(Tensor &t, int rows, int cols) {
+  if (t.rowCount != rows || t.colCount != cols) {
+    t = Tensor(rows, cols);
+  } else {
+    memset(t.data, 0, t.size * sizeof(float));
   }
 }
 
-DenseLayer::DenseLayer(int inputCount, int neuronCount) //
+DenseLayer::DenseLayer(int inputCount, int neuronCount)
     : weights(inputCount, neuronCount), biases(1, neuronCount), inputs(nullptr),
       output(), dWeights(), dBiases(), dInputs() {
-  // Random small initialization to break symmetry.
-  for (int r = 0; r < inputCount; r++) {
-    for (int c = 0; c < neuronCount; c++) {
-      long rnd = random(-100, 101);
-      weights(r, c) = static_cast<float>(rnd) / 1000.0f;
-    }
+  for (int i = 0; i < inputCount * neuronCount; i++) {
+    weights.data[i] = static_cast<float>(random(-100, 101)) / 1000.0f;
   }
-
   for (int c = 0; c < neuronCount; c++) {
-    biases(0, c) = 0.0f;
+    biases.data[c] = 0.0f;
   }
 }
 
 void DenseLayer::forward(const Tensor &x) {
   inputs = &x;
-  ensureTensorShape(output, x.rows, weights.cols);
+  ensureTensorShape(output, x.rowCount, weights.colCount);
 
-  for (int r = 0; r < x.rows; r++) {
-    for (int c = 0; c < weights.cols; c++) {
-      float sum = 0.0f;
-      for (int k = 0; k < x.cols; k++) {
-        sum += x(r, k) * weights(k, c);
+  for (int r = 0; r < x.rowCount; r++) {
+    for (int k = 0; k < x.colCount; k++) {
+      float a = x(r, k);
+      for (int c = 0; c < weights.colCount; c++) {
+        output(r, c) += a * weights(k, c);
       }
-      output(r, c) = sum + biases(0, c);
+    }
+  }
+
+  for (int r = 0; r < output.rowCount; r++) {
+    for (int c = 0; c < output.colCount; c++) {
+      output(r, c) += biases(0, c);
     }
   }
 }
 
 void DenseLayer::backward(const Tensor &dValues, bool computeDInputs) {
-  if (inputs == nullptr) {
-    // If backward is called before forward,
-    // we can't compute gradients, so we just return.
+  if (inputs == nullptr)
     return;
-  }
 
-  ensureTensorShape(dWeights, inputs->cols,
-                    dValues.cols); // Ensure dWeights has the correct shape
-                                   // (input features x neurons).
-  ensureTensorShape(
-      dBiases, 1,
-      dValues.cols); // Ensure dBiases has the correct shape (1 x neurons).
+  ensureTensorShape(dWeights, inputs->colCount, dValues.colCount);
+  ensureTensorShape(dBiases, 1, dValues.colCount);
 
-  for (int r = 0; r < inputs->cols; r++) {
-    // Compute dWeights by multiplying inputs^T with dValues.
-    for (int c = 0; c < dValues.cols; c++) {
+  for (int r = 0; r < inputs->colCount; r++) {
+    for (int c = 0; c < dValues.colCount; c++) {
       float sum = 0.0f;
-      for (int k = 0; k < inputs->rows; k++) {
+      for (int k = 0; k < inputs->rowCount; k++) {
         sum += (*inputs)(k, r) * dValues(k, c);
       }
       dWeights(r, c) = sum;
     }
   }
 
-  if (computeDInputs) { // Compute dInputs by multiplying dValues with
-                        // weights^T.
-    ensureTensorShape(dInputs, dValues.rows, weights.rows);
-
-    for (int r = 0; r < dValues.rows; r++) {
-      for (int c = 0; c < weights.rows; c++) {
+  if (computeDInputs) {
+    ensureTensorShape(dInputs, dValues.rowCount, weights.rowCount);
+    for (int r = 0; r < dValues.rowCount; r++) {
+      for (int c = 0; c < weights.rowCount; c++) {
         float sum = 0.0f;
-        for (int k = 0; k < dValues.cols; k++) {
+        for (int k = 0; k < dValues.colCount; k++) {
           sum += dValues(r, k) * weights(c, k);
         }
         dInputs(r, c) = sum;
@@ -98,38 +86,27 @@ void DenseLayer::backward(const Tensor &dValues, bool computeDInputs) {
     }
   }
 
-  for (int c = 0; c < dValues.cols; c++) { // Compute dBiases by summing dValues
-                                           // across the batch for each neuron.
+  for (int c = 0; c < dValues.colCount; c++) {
     float sum = 0.0f;
-    for (int r = 0; r < dValues.rows; r++) {
+    for (int r = 0; r < dValues.rowCount; r++) {
       sum += dValues(r, c);
     }
     dBiases(0, c) = sum;
   }
 }
 
-void DenseLayer::update(
-    float learningRate) { // Update weights and biases using the
-                          // computed gradients, applying gradient
-                          // clipping to prevent exploding gradients.
-  for (int r = 0; r < weights.rows; r++) {
-    for (int c = 0; c < weights.cols; c++) {
-      float grad = dWeights(r, c);
-      if (!isfinite(grad)) {
-        grad = 0.0f;
-      }
-      grad = clampValue(grad, kGradClipLimit);
-      weights(r, c) -= learningRate * grad;
-    }
+void DenseLayer::update(float learningRate) {
+  for (int i = 0; i < weights.size; i++) {
+    float grad = isfinite(weights.data[i])
+                     ? clampValue(dWeights.data[i], kGradClipLimit)
+                     : 0.0f;
+    weights.data[i] -= learningRate * grad;
   }
 
-  for (int c = 0; c < biases.cols;
-       c++) { // Update biases with gradient clipping.
-    float grad = dBiases(0, c);
-    if (!isfinite(grad)) {
-      grad = 0.0f;
-    }
-    grad = clampValue(grad, kGradClipLimit);
-    biases(0, c) -= learningRate * grad;
+  for (int c = 0; c < biases.colCount; c++) {
+    float grad = isfinite(biases.data[c])
+                     ? clampValue(dBiases.data[c], kGradClipLimit)
+                     : 0.0f;
+    biases.data[c] -= learningRate * grad;
   }
-};
+}
