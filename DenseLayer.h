@@ -1,10 +1,7 @@
 #pragma once
 #include "Tensor.h"
 
-float clampValue(float x, float limit);
-void ensureTensorShape(Tensor &t, int rows, int cols);
-
-struct DenseLayer { // i am dense
+struct DenseLayer {
   Tensor weights;
   Tensor biases;
   const Tensor *inputs;

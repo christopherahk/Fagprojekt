@@ -1,66 +1,31 @@
 #pragma once
-// This file only supports 2D Tensors, e.g. matrices, which are flattened to a
-// 1D array.
 
 struct Tensor {
-  int rows;
-  int cols;
+  int rowCount;
+  int colCount;
   float *data;
   int size;
-  bool owned;
 
-  // Constructors and destructor.
-  Tensor(const float *data_, int rows_,
-         int cols_); // Tensor constructor with data, rows and columns.
-  Tensor(int rows_, int cols_); // Constructor for empty tensor.
-  Tensor(float *buffer, int rows_,
-         int cols_);           // Tensor wrapper around external buffer.
-  Tensor(const Tensor &other); // Copy constructor.
-  Tensor();                    // Default constructor.
-  ~Tensor();                   // Destructor for the allocated data array.
+  Tensor(int rows, int cols);
+  Tensor(const Tensor &other);
+  Tensor();
+  ~Tensor();
 
-  // Void functions
-  void fill(const float *values); // Used to fill the tensor with data as memory
-                                  // for the data array is allocated.
-  void printTensor();             // Prints each row of the tensor.
-
-  // Operators
   float &operator()(int row, int col);
   float operator()(int row, int col) const;
-  Tensor operator+(const Tensor &B);
-  Tensor operator-(const Tensor &B);
-  Tensor &operator=(Tensor B);
-  void swap(Tensor &B); // Swap function for = operator
-  void copyFrom(const Tensor &other);
+  Tensor &operator+=(const Tensor &other);
+  Tensor &operator-=(const Tensor &other);
+  Tensor &operator*=(float scalar);
+  Tensor &operator=(const Tensor &other);
+  Tensor &operator=(Tensor &&other);
 
-  // Matrix operations
-  Tensor matmul(const Tensor &B) const; // Matrix multiplication
-  void matmulInto(const Tensor &B, Tensor &out) const;
-  void matmulTInto(const Tensor &B, Tensor &out) const;
-  void matmulBTInto(const Tensor &B, Tensor &out) const;
-  Tensor transpose() const; // Transpose tensor.
-  template <typename Func> Tensor applyElementWise(Func f) const {
-    Tensor B(rows, cols);
-
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        B(r, c) = f(this->operator()(r, c));
-      }
-    }
-
-    return B;
-  }
+  Tensor &matmul(const Tensor &B);
+  Tensor &transpose();
   Tensor sumRows() const;
   Tensor sumCols() const;
   float mean() const;
-  Tensor clip(float minValue, float maxValue) const;
-  Tensor selectTrueClass(const Tensor &B) const;
+  Tensor &clip(float minValue, float maxValue);
+  Tensor selectTrueClass(const Tensor &other) const;
   int argmaxRow(int row) const;
-  Tensor applyMax() const;
-  Tensor addMatAndVec(const Tensor &B) const;
-  Tensor matDivVecRows(const Tensor &vec) const;
-  Tensor operator*(float scalar) const;
-  friend Tensor operator*(float scalar, const Tensor &T);
-  Tensor element_wise_multiply(const Tensor &B);
   void apply(float (*func)(float));
 };

@@ -6,7 +6,7 @@ struct ReLU {
   Tensor dInputs;
   Tensor inputs;
 
-  void forward(const Tensor &inputs);
+  void forward(Tensor &inputs);
   void backward(const Tensor &dValues);
 };
 
@@ -15,7 +15,7 @@ struct Sigmoid {
   Tensor dInputs;
   Tensor inputs;
 
-  void forward(const Tensor &inputs);
+  void forward(Tensor &inputs);
   void backward(const Tensor &dValues);
 };
 

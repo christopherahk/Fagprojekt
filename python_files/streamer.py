@@ -1,110 +1,63 @@
-import os
-import time
-
 import numpy as np
-import serial
-import tqdm
-import spikeinterface.extractors as se
 from scipy.signal import decimate
+from load_intan_rhd_format import read_data
+import os
+import serial
+import random
 
 PORT = "COM3"
 BAUD = 115200
-
-DATA_FOLDER = "data"
-SINGLE_FILE = None
-
-STREAM_ID = "0"
-RAW_FS = 30_000
-DOWNSAMPLE = 100
+DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
-WINDOW = 100
+WINDOW = 20
+CHUNK_SIZE = 64
 
 CLASSES = {
-    "DORSIFLEXION":   0,
+    "DORSIFLEXION": 0,
     "PLANTARFLEXION": 1,
-    "PRICKING":       2,
+    "PRICKING": 2
 }
 N_CLASSES = len(CLASSES)
 
-SEND_LABELS = True
 
-LINE_GAP_MIN = 0.003
-LINE_GAP_MAX = 0.100
-LINE_GAP     = 0.005
+def load_and_downsample(filename, num_channels=N_CHANNELS, downsample_factor=DOWNSAMPLE_FACTOR):
+    print(f'Loading {filename}')
+    result = read_data(filename)
 
-ACK_TIMEOUT  = 5.0
-RESET_PAUSE  = 0.20
+    amplifier_data = result['amplifier_data']
+    t = result['t_amplifier']
 
+    total_channels = amplifier_data.shape[0]
+    if num_channels > total_channels:
+        raise ValueError(f'Requested {num_channels} channels but file only has {total_channels}')
 
-def find_rhd_files(root):
-    abs_root = os.path.abspath(root)
-    print(f"  Scanning: {abs_root}")
+    channels = amplifier_data[:num_channels, :]
 
-    if not os.path.isdir(abs_root):
-        print(f"  [ERROR] Folder not found: {abs_root}")
-        return []
+    print(f'Downsampling by factor {downsample_factor}')
+    num_samples_downsampled = len(decimate(channels[0], downsample_factor))
+    downsampled = np.zeros((num_channels, num_samples_downsampled))
 
-    try:
-        all_dirs = sorted(os.listdir(abs_root))
-    except PermissionError as e:
-        print(f"  [ERROR] Cannot list folder: {e}")
-        return []
+    for i in range(num_channels):
+        downsampled[i] = decimate(channels[i], downsample_factor)
 
-    part2_dirs = [d for d in all_dirs if d.lower().endswith("dorsiflexion")]
-    other_dirs = [d for d in all_dirs if not d.lower().endswith("dorsiflexion")]
+    t_downsampled = t[::downsample_factor][:num_samples_downsampled]
 
-    print(f"  Subfolders ending with 'dorsiflexion' ({len(part2_dirs)}): {part2_dirs}")
-    print(f"  Subfolders skipped ({len(other_dirs)}): {other_dirs}")
+    _, num_samples = downsampled.shape
+    num_windows = num_samples // WINDOW
+    data = downsampled[:, :num_windows * WINDOW].reshape(num_channels, num_windows, WINDOW)
+    t_downsampled = t_downsampled[:num_windows * WINDOW].reshape(num_windows, WINDOW)
 
-    paths = []
-    for folder in part2_dirs:
-        folder_path = os.path.join(abs_root, folder)
-        rhd_files = sorted(f for f in os.listdir(folder_path) if f.endswith(".rhd"))
-        print(f"  {folder}: {len(rhd_files)} .rhd file(s)")
-        for name in rhd_files:
-            paths.append(os.path.join(folder_path, name))
-
-    return paths
+    return t_downsampled, data
 
 
-def infer_label(path):
+def get_label(path):
     folder = os.path.basename(os.path.dirname(path)).upper()
     for class_name, idx in CLASSES.items():
         if class_name in folder:
             one_hot = [0] * N_CLASSES
             one_hot[idx] = 1
             return one_hot
-    print(f"  [LABEL_SKIP] Cannot infer class from folder: {os.path.dirname(path)}")
-    return None
-
-
-def load_and_preprocess(path):
-    recording = se.read_intan(path, stream_id=STREAM_ID)
-    n_samples  = recording.get_num_samples()
-    n_ch       = recording.get_num_channels()
-
-    if n_ch < N_CHANNELS:
-        print(f"  [SKIP] {path}: only {n_ch} channels (need {N_CHANNELS})")
-        return None
-
-    raw_window = WINDOW * DOWNSAMPLE
-    n_frames = n_samples // raw_window
-    if n_frames == 0:
-        print(f"  [SKIP] {path}: too short ({n_samples} samples)")
-        return None
-
-    frames = []
-    for i in range(n_frames):
-        start = i * raw_window
-        end = start + raw_window
-
-        raw = recording.get_traces(start_frame=start, end_frame=end)
-        down = decimate(raw, DOWNSAMPLE, axis=0).astype(np.float32)
-        down = down[:, :N_CHANNELS]
-        down /= 32768.0
-        frames.append(down.T)
-
-    return np.stack(frames, axis=0)
+    return [0] * N_CLASSES
 
 
 def readline(ser):
@@ -114,100 +67,72 @@ def readline(ser):
         return ""
 
 
-def wait_for_ack(ser):
-    deadline = time.monotonic() + ACK_TIMEOUT
-    while time.monotonic() < deadline:
-        if ser.in_waiting:
-            line = readline(ser)
-            if line:
-                print(f"  Arduino: {line}")
-            if line.startswith("OUT,") or line.startswith("TRAIN,"):
-                return "ok"
-            if line.startswith("ERR_FRAME_RESET"):
-                ser.reset_input_buffer()
-                time.sleep(RESET_PAUSE)
-                return "reset"
-        else:
-            time.sleep(0.005)
-    ser.reset_input_buffer()
+def wait_for_answer(ser):
+    line = readline(ser)
+    if line:
+        print(f"Arduino: {line}")
+    if line.startswith("OUT") or line.startswith("TRAIN"):
+        return "ok"
     return "timeout"
 
 
-_line_gap = LINE_GAP
+def stream_window(ser, windows, labels):
+    for i, (window, label) in enumerate(zip(windows, labels)):
+        trigger = ""
+        while trigger != "SEND":
+            trigger = readline(ser)
+
+        data_bytes = window.tobytes()
+        for j in range(0, len(data_bytes), CHUNK_SIZE):
+            chunk = data_bytes[j:j + CHUNK_SIZE]
+            ser.write(chunk)
+            ser.flush()
+            ack = readline(ser)
+            if ack != "ACK":
+                print(f"Window {i}, chunk {j // CHUNK_SIZE}: Expected ACK, got: '{ack}'")
+                return
+
+        ser.write(bytes(label))
+        ser.flush()
+        wait_for_answer(ser)
+        print(f"Window {i} done")
 
 
-def send_frame(ser, frame, label):
-    global _line_gap
+if __name__ == '__main__':
+    files = [
+        "./data/RAT4_DORSIFLEXION/dorsi_170306_123322.rhd",
+        "./data/RAT4_PLANTARFLEXION/plantar_170306_123936.rhd",
+        "./data/RAT4_PRICKING/pricking_170306_125402.rhd",
+    ]
 
-    lines = []
-    for ch in range(N_CHANNELS):
-        values = ",".join(f"{v:.5f}" for v in frame[ch])
-        lines.append((values + "\n").encode("utf-8"))
+    all_windows = []
+    all_labels = []
 
-    if label is not None and SEND_LABELS:
-        lines.append((",".join(str(v) for v in label) + "\n").encode("utf-8"))
+    for filename in files:
+        _, data = load_and_downsample(filename)
+        label = get_label(filename)
+        _, num_windows, _ = data.shape
+        for frame in range(num_windows):
+            all_windows.append(data[:, frame, :].flatten().astype(np.float32))
+            all_labels.append(label)
 
-    ser.write(b"".join(lines))
-    ser.flush()
+    combined = list(zip(all_windows, all_labels))
+    random.shuffle(combined)
+    all_windows, all_labels = zip(*combined)
 
-    result = wait_for_ack(ser)
+    ser = serial.Serial(PORT, BAUD, timeout=5)
 
-    if result == "ok":
-        _line_gap = max(LINE_GAP_MIN, _line_gap * 0.90)
+    arduino_answer = ""
+    for _ in range(10):
+        line = readline(ser)
+        if line == "READY":
+            arduino_answer = "READY"
+            break
+
+    if arduino_answer == "READY":
+        ser.write(b"GO\n")
+        ser.flush()
+        stream_window(ser, all_windows, all_labels)
     else:
-        _line_gap = min(LINE_GAP_MAX, _line_gap * 2.0)
-        print(f"  [GAP] line gap now {_line_gap*1000:.1f} ms (kept for label send)")
-
-    return result == "ok"
-
-
-def stream_file(ser, path):
-    print(f"\nLoading: {path}")
-    data = load_and_preprocess(path)
-    if data is None:
-        return 0, 0
-
-    label   = infer_label(path)
-    n_frames = data.shape[0]
-    ok = dropped = 0
-
-    for i in range(n_frames):
-        success = send_frame(ser, data[i], label)
-        if success:
-            ok += 1
-        else:
-            dropped += 1
-
-    print(f"  Done: {ok} ok, {dropped} dropped out of {n_frames} frames")
-    return ok, dropped
-
-
-def main():
-    ser = serial.Serial(PORT, BAUD, timeout=1)
-    try:
-        print(f"Opened {PORT} at {BAUD} baud.")
-        print("Waiting for Arduino to boot (2 s)...")
-        time.sleep(2.0)
-        while ser.in_waiting:
-            print(f"  Arduino: {readline(ser)}")
-
-        if SINGLE_FILE:
-            files = [SINGLE_FILE]
-        else:
-            files = find_rhd_files(DATA_FOLDER)
-            print(f"Found {len(files)} .rhd files under '{DATA_FOLDER}'.")
-
-        total_ok = total_dropped = 0
-        for path in tqdm.tqdm(files, desc="Files"):
-            ok, dropped = stream_file(ser, path)
-            total_ok += ok
-            total_dropped += dropped
-
-        print(f"\nFinished. Total frames - ok: {total_ok}, dropped: {total_dropped}")
-
-    finally:
+        print("Arduino not ready.")
         ser.close()
-
-
-if __name__ == "__main__":
-    main()
