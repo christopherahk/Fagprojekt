@@ -154,7 +154,7 @@ Tensor Tensor::selectTrueClass(const Tensor &other) const {
       }
     }
   }
-  return *this;
+  return C;
 }
 
 int Tensor::argmaxRow(int row) const {

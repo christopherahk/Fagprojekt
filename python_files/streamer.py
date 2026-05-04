@@ -6,11 +6,11 @@ import serial
 import random
 
 PORT = "COM3"
-BAUD = 115200
+BAUD = 500_000
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
-WINDOW = 20
-CHUNK_SIZE = 64
+WINDOW = 100
+CHUNK_SIZE = 256
 
 CLASSES = {
     "DORSIFLEXION": 0,
@@ -68,12 +68,14 @@ def readline(ser):
 
 
 def wait_for_answer(ser):
-    line = readline(ser)
-    if line:
-        print(f"Arduino: {line}")
-    if line.startswith("OUT") or line.startswith("TRAIN"):
-        return "ok"
-    return "timeout"
+    while True:
+        line = readline(ser)
+        if line and "Probs" in line:
+            print(f"Arduino: {line}")
+        if line.startswith("TRAIN"):
+            return "ok"
+        if not line:
+            return "timeout"
 
 
 def stream_window(ser, windows, labels):
@@ -82,6 +84,7 @@ def stream_window(ser, windows, labels):
         while trigger != "SEND":
             trigger = readline(ser)
 
+        window = (window - window.mean()) / (window.std() + 1e-8)
         data_bytes = window.tobytes()
         for j in range(0, len(data_bytes), CHUNK_SIZE):
             chunk = data_bytes[j:j + CHUNK_SIZE]
@@ -95,7 +98,8 @@ def stream_window(ser, windows, labels):
         ser.write(bytes(label))
         ser.flush()
         wait_for_answer(ser)
-        print(f"Window {i} done")
+        if i % 10 == 0:
+            print(f"Window {i} done")
 
 
 if __name__ == '__main__':
