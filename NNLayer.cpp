@@ -34,8 +34,8 @@ void NNLayer::forward(const Tensor &inputs_) {
 
   output = inputs.matmul(weights);
 
-  for (int r = 0; r < output.rows; r++) {
-    for (int c = 0; c < output.cols; c++) {
+  for (int r = 0; r < output.rowCount; r++) {
+    for (int c = 0; c < output.colCount; c++) {
       output(r, c) += biases(0, c);
     }
   }
@@ -46,7 +46,8 @@ void NNLayer::backward(const Tensor &dValues) {
   dWeights = inputsT.matmul(dValues);
 
   Tensor weightsT = weights.transpose();
-  dInputs = dValues.matmul(weightsT);
+  Tensor dValuesCopy = dValues;
+  dInputs = dValuesCopy.matmul(weightsT);
 
   dBiases = dValues.sumRows();
 }
