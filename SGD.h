@@ -4,7 +4,7 @@
 struct SGD {
   int learningRate;
 
-  SGD(float lr);
+  explicit SGD(float lr);
 
   void updateParameters(NNLayer layer);
 };
