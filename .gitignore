@@ -54,6 +54,8 @@ thumbs.db
 # Other files
 compile_commands.json
 data/*
+python_files/intanutil/
+load_intan_rhd_format.py
 
 # pre commit
 .pre-commit-config.yaml
@@ -63,3 +65,4 @@ data/
 data2/
 softmax_csv_analysis/
 softmax_test_120.csv
+build/
