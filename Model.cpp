@@ -1,7 +1,7 @@
 #include "Model.h"
-#include "Activation_Sofmax_CategoricalCrossEntropy.h"
+#include "Activations.h"
+#include "GetLoss.h"
 #include "NNLayer.h"
-#include "ReLU.h"
 #include "SGD.h"
 
 Model::Model(int nInputs, int nHidden, int batchSize, int nClasses)
