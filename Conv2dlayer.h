@@ -12,6 +12,12 @@ struct Conv2DLayer {
   Tensor dBiases;
   Tensor dInputs;
 
+  Tensor mWeights;
+  Tensor vWeights;
+  Tensor mBiases;
+  Tensor vBiases;
+  int adamT;
+
   int inH, inW;
   int outChannels;
   int kernelH, kernelW;

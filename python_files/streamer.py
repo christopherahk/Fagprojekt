@@ -4,13 +4,16 @@ from load_intan_rhd_format import read_data
 import os
 import serial
 import random
+import glob
 
 PORT = "COM3"
 BAUD = 500_000
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
-WINDOW = 100
+WINDOW = 50
 CHUNK_SIZE = 256
+
+EPOCHS = 10
 
 CLASSES = {
     "DORSIFLEXION": 0,
@@ -42,12 +45,35 @@ def load_and_downsample(filename, num_channels=N_CHANNELS, downsample_factor=DOW
 
     t_downsampled = t[::downsample_factor][:num_samples_downsampled]
 
-    _, num_samples = downsampled.shape
-    num_windows = num_samples // WINDOW
-    data = downsampled[:, :num_windows * WINDOW].reshape(num_channels, num_windows, WINDOW)
-    t_downsampled = t_downsampled[:num_windows * WINDOW].reshape(num_windows, WINDOW)
+    actual_windows = downsampled.shape[1] // WINDOW
 
+    data = downsampled[:, :actual_windows * WINDOW].reshape(num_channels, actual_windows, WINDOW)
     return t_downsampled, data
+
+
+def save_model_to_file(ser, filename="trained_weights.h"):
+    print(f"Requesting weight dump from Arduino")
+    ser.reset_input_buffer()
+
+    ser.write(b'EX')
+    ser.flush()
+
+    with open(filename, "w") as f:
+        started = False
+        while True:
+            line = readline(ser)
+            if "START_EXPORT" in line:
+                started = True
+                print("Receiving weights")
+                continue
+            if "END_EXPORT" in line:
+                print(f"Model saved to {filename}")
+                break
+            if started:
+                f.write(line + "\n")
+
+    ser.write(b'R')
+    ser.flush()
 
 
 def get_label(path):
@@ -102,12 +128,53 @@ def stream_window(ser, windows, labels):
             print(f"Window {i} done")
 
 
+def stream_epoch(ser, epoch_idx, windows, labels):
+    print(f"Starting Epoch {epoch_idx + 1}/{EPOCHS}")
+
+    combined = list(zip(windows, labels))
+    random.shuffle(combined)
+
+    for i, (window, label) in enumerate(combined):
+        trigger = ""
+        while trigger != "SEND":
+            trigger = readline(ser)
+
+        window = (window - window.mean()) / (window.std() + 1e-8)
+        data_bytes = window.tobytes()
+
+        for j in range(0, len(data_bytes), CHUNK_SIZE):
+            chunk = data_bytes[j:j + CHUNK_SIZE]
+            ser.write(chunk)
+            ser.flush()
+            ack = readline(ser)
+            if ack != "ACK":
+                print(f"Err Ack: {ack}")
+                return
+
+        ser.write(bytes(label))
+        ser.flush()
+        wait_for_answer(ser)
+
+        if i % 10 == 0:
+            print(f"Window {i}/{len(windows)} sent")
+
+
 if __name__ == '__main__':
+    search_pattern = "./data/RAT*_*"
+    all_folders = glob.glob(search_pattern)
+
     files = [
         "./data/RAT4_DORSIFLEXION/dorsi_170306_123322.rhd",
         "./data/RAT4_PLANTARFLEXION/plantar_170306_123936.rhd",
         "./data/RAT4_PRICKING/pricking_170306_125402.rhd",
     ]
+
+    """files = []
+    for folder in all_folders:
+        folder_name = os.path.basename(folder).upper()
+        if any(cls in folder_name for cls in CLASSES.keys()):
+            rhd_files = glob.glob(os.path.join(folder, "*.rhd"))
+            files.extend(rhd_files)"""
 
     all_windows = []
     all_labels = []
@@ -115,14 +182,10 @@ if __name__ == '__main__':
     for filename in files:
         _, data = load_and_downsample(filename)
         label = get_label(filename)
-        _, num_windows, _ = data.shape
+        num_windows = data.shape[1]
         for frame in range(num_windows):
             all_windows.append(data[:, frame, :].flatten().astype(np.float32))
             all_labels.append(label)
-
-    combined = list(zip(all_windows, all_labels))
-    random.shuffle(combined)
-    all_windows, all_labels = zip(*combined)
 
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
@@ -136,7 +199,10 @@ if __name__ == '__main__':
     if arduino_answer == "READY":
         ser.write(b"GO\n")
         ser.flush()
-        stream_window(ser, all_windows, all_labels)
+        for epoch in range(EPOCHS):
+            stream_epoch(ser, epoch, all_windows, all_labels)
+            save_model_to_file(ser, "trained_weights.h")
+        print("All epochs completed and model saved.")
     else:
         print("Arduino not ready.")
         ser.close()
