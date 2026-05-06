@@ -13,7 +13,7 @@ N_CHANNELS = 56
 WINDOW = 50
 CHUNK_SIZE = 256
 
-EPOCHS = 10
+EPOCHS = 100
 
 CLASSES = {
     "DORSIFLEXION": 0,
@@ -104,30 +104,6 @@ def wait_for_answer(ser):
             return "timeout"
 
 
-def stream_window(ser, windows, labels):
-    for i, (window, label) in enumerate(zip(windows, labels)):
-        trigger = ""
-        while trigger != "SEND":
-            trigger = readline(ser)
-
-        window = (window - window.mean()) / (window.std() + 1e-8)
-        data_bytes = window.tobytes()
-        for j in range(0, len(data_bytes), CHUNK_SIZE):
-            chunk = data_bytes[j:j + CHUNK_SIZE]
-            ser.write(chunk)
-            ser.flush()
-            ack = readline(ser)
-            if ack != "ACK":
-                print(f"Window {i}, chunk {j // CHUNK_SIZE}: Expected ACK, got: '{ack}'")
-                return
-
-        ser.write(bytes(label))
-        ser.flush()
-        wait_for_answer(ser)
-        if i % 10 == 0:
-            print(f"Window {i} done")
-
-
 def stream_epoch(ser, epoch_idx, windows, labels):
     print(f"Starting Epoch {epoch_idx + 1}/{EPOCHS}")
 
@@ -184,7 +160,11 @@ if __name__ == '__main__':
         label = get_label(filename)
         num_windows = data.shape[1]
         for frame in range(num_windows):
-            all_windows.append(data[:, frame, :].flatten().astype(np.float32))
+            window = data[:, frame, :].flatten().astype(np.float32)
+            window = (window - window.mean())
+            window_clipped = np.clip(window, -50.0, 50.0)
+            window_norm = window_clipped / 50.0
+            all_windows.append(window_norm)
             all_labels.append(label)
 
     ser = serial.Serial(PORT, BAUD, timeout=5)

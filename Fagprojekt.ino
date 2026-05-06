@@ -15,13 +15,13 @@ const int CHUNK_SIZE = 256;
 
 const int BATCH_SIZE = 8;
 const bool FREEZE_CONV = false;
-const float INITIAL_LR = 0.001f;
+const float INITIAL_LR = 0.01f;
 const float LR_DECAY = 0.95f;
 const int DECAY_STEP = 100;
 
 const int CONV_FILTERS = 8;
-const int CONV_KERNEL_H = 3;
-const int CONV_KERNEL_W = 3;
+const int CONV_KERNEL_H = 5;
+const int CONV_KERNEL_W = 5;
 const int CONV_STRIDE_H = 3;
 const int CONV_STRIDE_W = 4;
 const int CONV_PAD_H = 0;
