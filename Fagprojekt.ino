@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 const int N_CHANNELS = 56;
-const int WINDOW = 50;
+const int WINDOW = 100;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * WINDOW;
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
@@ -19,9 +19,9 @@ const float INITIAL_LR = 0.01f;
 const float LR_DECAY = 0.95f;
 const int DECAY_STEP = 100;
 
-const int CONV_FILTERS = 8;
-const int CONV_KERNEL_H = 5;
-const int CONV_KERNEL_W = 5;
+const int CONV_FILTERS = 4;
+const int CONV_KERNEL_H = 7;
+const int CONV_KERNEL_W = 7;
 const int CONV_STRIDE_H = 3;
 const int CONV_STRIDE_W = 4;
 const int CONV_PAD_H = 0;
@@ -81,10 +81,16 @@ void exportModel() {
 
   printTensor("conv_w", conv.weights);
   printTensor("conv_b", conv.biases);
+  printTensor("conv_mw", conv.mWeights);
+  printTensor("conv_mb", conv.mBiases);
   printTensor("layer1_w", layer1.weights);
   printTensor("layer1_b", layer1.biases);
+  printTensor("layer1_mw", layer1.mWeights);
+  printTensor("layer1_mb", layer1.mBiases);
   printTensor("layer2_w", layer2.weights);
   printTensor("layer2_b", layer2.biases);
+  printTensor("layer2_mw", layer2.mWeights);
+  printTensor("layer2_mb", layer2.mBiases);
 
   Serial.println("\n#endif");
   Serial.println("END_EXPORT");
