@@ -24,6 +24,9 @@ static float features[N_FEATURES];
 // Probability output
 static float proba[N_CLASSES];
 
+static uint32_t labeledSamples = 0;
+static uint32_t correctLabeledSamples = 0;
+
 // model setup
 // delta = 0.05 : split when 95% statistically confident
 // tau   = 0.05 : also split if the top two features are within 0.05 of each
@@ -57,20 +60,29 @@ void get_data() {
     Serial.println("ACK");
   }
 
-  // Read the one-hot label (3 bytes: e.g. [1, 0, 0] for dorsi)
+  // Read the optional one-hot label (3 bytes: e.g. [1, 0, 0] for dorsi).
+  // If no label arrives, treat the window as unlabeled inference-only data.
   int label[N_CLASSES];
+  bool hasLabel = true;
   for (int i = 0; i < N_CLASSES; i++) {
-    while (!Serial.available())
-      ;
+    unsigned long start = millis();
+    while (!Serial.available()) {
+      if (millis() - start > 5000) {
+        hasLabel = false;
+        break;
+      }
+    }
+    if (!hasLabel)
+      break;
     label[i] = Serial.read();
   }
 
-  processWindow(values, label);
-  Serial.println("TRAIN");
-}
+  if (!hasLabel) {
+    processWindow(values, -1);
+    Serial.println("INFER");
+    return;
+  }
 
-void processWindow(const float *data, const int label[N_CLASSES]) {
-  // Decode one-hot label to class index
   int labelIdx = -1;
   for (int i = 0; i < N_CLASSES; i++) {
     if (label[i] == 1) {
@@ -78,9 +90,18 @@ void processWindow(const float *data, const int label[N_CLASSES]) {
       break;
     }
   }
-  if (labelIdx < 0)
-    return; // invalid skip
 
+  if (labelIdx < 0) {
+    processWindow(values, -1);
+    Serial.println("INVALID_LABEL");
+    return;
+  }
+
+  processWindow(values, labelIdx);
+  Serial.println("TRAIN");
+}
+
+void processWindow(const float *data, int labelIdx) {
   // feature extraction
   extractFeatures(data, N_CHANNELS, WINDOW, features);
 
@@ -88,8 +109,15 @@ void processWindow(const float *data, const int label[N_CLASSES]) {
   hat.predictProba(features, proba);
   int pred = hat.predict(features);
 
-  // train on instance
-  hat.train(features, labelIdx);
+  bool isLabeled = labelIdx >= 0 && labelIdx < N_CLASSES;
+
+  if (isLabeled) {
+    // train on instance
+    hat.train(features, labelIdx);
+    labeledSamples++;
+    if (pred == labelIdx)
+      correctLabeledSamples++;
+  }
 
   // serial output
   Serial.print("Probs: ");
@@ -102,8 +130,12 @@ void processWindow(const float *data, const int label[N_CLASSES]) {
 
   Serial.print("Pred: ");
   Serial.print(CLASS_NAMES[pred]);
-  Serial.print(" | True: ");
-  Serial.println(CLASS_NAMES[labelIdx]);
+  if (isLabeled) {
+    Serial.print(" | True: ");
+    Serial.println(CLASS_NAMES[labelIdx]);
+  } else {
+    Serial.println(" | True: <none>");
+  }
 
   // Tree size diagnostics
   Serial.print("Leaves: ");
@@ -111,7 +143,22 @@ void processWindow(const float *data, const int label[N_CLASSES]) {
   Serial.print(" | Internals: ");
   Serial.println(hat.internalCount());
 
-  Serial.println(pred == labelIdx ? "CORRECT" : "WRONG");
+  if (isLabeled) {
+    float runningAcc =
+        labeledSamples > 0
+            ? 100.0f * (float)correctLabeledSamples / (float)labeledSamples
+            : 0.0f;
+    Serial.print("Acc: ");
+    Serial.print(runningAcc, 2);
+    Serial.print("% (");
+    Serial.print(correctLabeledSamples);
+    Serial.print("/");
+    Serial.print(labeledSamples);
+    Serial.println(")");
+    Serial.println(pred == labelIdx ? "CORRECT" : "WRONG");
+  } else {
+    Serial.println("UNLABELED");
+  }
 }
 
 void setup() {
