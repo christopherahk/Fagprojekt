@@ -1,4 +1,4 @@
-#include "MaxPool2D.h"
+#include "Maxpool2d.h"
 #include "Tensor.h"
 #include <float.h>
 #include <string.h>
