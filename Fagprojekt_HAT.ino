@@ -6,8 +6,8 @@
 const int N_CHANNELS = 56;
 const int WINDOW = 20;
 const int N_CLASSES = 3;
-const int N_FLOATS = N_CHANNELS * WINDOW; // 1120 raw floats
-const int N_FEATURES = N_CHANNELS * 4;    // 224 extracted features
+const int N_FLOATS = N_CHANNELS * WINDOW;
+const int N_FEATURES = N_CHANNELS * 4;
 
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 64;
@@ -15,7 +15,6 @@ const int CHUNK_SIZE = 64;
 // Class labels for serial output
 const char *CLASS_NAMES[N_CLASSES] = {"dorsi", "plantar", "none"};
 
-// static buffers
 // Raw signal window
 static float values[N_FLOATS];
 

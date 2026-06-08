@@ -110,7 +110,7 @@ private:
       giniRight -= pR * pR;
     }
 
-    // weighted gini after split
+    // weighted gini after split. gini is impurity
     float weightedGini = ((float)leftCount / s->totalSamples) * giniLeft +
                          ((float)rightCount / s->totalSamples) * giniRight;
 
