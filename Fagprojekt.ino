@@ -2,7 +2,7 @@
 
 #include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
-#include "Conv2DLayer.h"
+#include "Conv2dlayer.h"
 #include "DenseLayer.h"
 #include "GetLoss.h"
 #include "trained_weights.h"
