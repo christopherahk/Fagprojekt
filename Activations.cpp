@@ -3,9 +3,11 @@
 
 void ReLU::forward(Tensor &inputs_) {
   inputs = inputs_;
-
-  auto relu = [](float x) -> float { return fmaxf(0.0f, x); };
-  inputs_.apply(relu);
+  for (int i = 0; i < inputs_.size; i++) {
+    if (inputs_.data[i] < 0.0f) {
+      inputs_.data[i] = 0.0f;
+    }
+  }
   output = inputs_;
 }
 

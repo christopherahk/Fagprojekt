@@ -1,10 +1,12 @@
 #pragma once
 #include "Tensor.h"
 
-struct DenseLayer {
+struct Conv2DLayer {
   Tensor weights;
   Tensor biases;
+
   const Tensor *inputs;
+
   Tensor output;
   Tensor dWeights;
   Tensor dBiases;
@@ -16,7 +18,15 @@ struct DenseLayer {
   Tensor vBiases;
   int adamT;
 
-  DenseLayer(int inputCount, int neuronCount);
+  int inH, inW;
+  int outChannels;
+  int kernelH, kernelW;
+  int strideH, strideW;
+  int padH, padW;
+  int outH, outW;
+
+  Conv2DLayer(int inH, int inW, int outChannels, int kernelH, int kernelW,
+              int strideH, int strideW, int padH, int padW);
 
   void forward(const Tensor &x);
   void backward(const Tensor &dValues, bool computeDInputs = true);
