@@ -58,6 +58,9 @@ dataset_rats/*
 dataset_rats_50w/*
 python_files/intanutil/
 load_intan_rhd_format.py
+intanutil/*
+python_files/load_intan_rhd_format.py
+python_files/intanutil/*
 
 # pre commit
 .pre-commit-config.yaml

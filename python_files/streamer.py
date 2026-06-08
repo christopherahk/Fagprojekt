@@ -6,7 +6,7 @@ import serial
 import random
 from sklearn.preprocessing import StandardScaler
 
-PORT = "COM3"
+PORT = "COM7"
 BAUD = 1_000_000
 
 DOWNSAMPLE_FACTOR = 50
