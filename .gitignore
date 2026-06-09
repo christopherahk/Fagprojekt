@@ -61,6 +61,9 @@ load_intan_rhd_format.py
 intanutil/*
 python_files/load_intan_rhd_format.py
 python_files/intanutil/*
+training_accuracy.csv
+trained_weights.h
+scaler.npz
 
 # pre commit
 .pre-commit-config.yaml

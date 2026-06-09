@@ -4,13 +4,13 @@
 
 // signal dimensions
 const int N_CHANNELS = 56;
-const int WINDOW = 16;
+const int WINDOW = 32;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * WINDOW;
-const int N_FEATURES = N_CHANNELS * 4;
+const int N_FEATURES = N_CHANNELS * 6;
 
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
-const int CHUNK_SIZE = 64;
+const int CHUNK_SIZE = 256;
 
 // Class labels for serial output
 const char *CLASS_NAMES[N_CLASSES] = {"dorsi", "plantar", "none"};
@@ -44,10 +44,33 @@ HoeffdingAdaptiveTree hat2(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
 HoeffdingAdaptiveTree *hats[3] = {&hat0, &hat1, &hat2};
 
 // Python side sends raw float bytes in CHUNK_SIZE chunks
+// void get_data() {
+//   int received = 0;
+//   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
+//   int chunk_count = 0;
+
+//   while (received < BYTES_NEEDED) {
+//     int to_read = min(CHUNK_SIZE, BYTES_NEEDED - received);
+//     unsigned long start = millis();
+
+//     while (Serial.available() < to_read) {
+//       if (millis() - start > 5000) {
+//         Serial.print("TIMEOUT at chunk ");
+//         Serial.println(chunk_count);
+//         return;
+//       }
+//     }
+
+//     for (int i = 0; i < to_read; i++)
+//       buf[received++] = Serial.read();
+
+//     chunk_count++;
+//     Serial.println("ACK");
+//   }
+
 void get_data() {
   int received = 0;
   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
-  int chunk_count = 0;
 
   while (received < BYTES_NEEDED) {
     int to_read = min(CHUNK_SIZE, BYTES_NEEDED - received);
@@ -56,7 +79,7 @@ void get_data() {
     while (Serial.available() < to_read) {
       if (millis() - start > 5000) {
         Serial.print("TIMEOUT at chunk ");
-        Serial.println(chunk_count);
+        Serial.println(received);
         return;
       }
     }
@@ -64,31 +87,47 @@ void get_data() {
     for (int i = 0; i < to_read; i++)
       buf[received++] = Serial.read();
 
-    chunk_count++;
-    Serial.println("ACK");
+    // Serial.println("ACK"); <-- FJERNET! Sparer oceaner af tid.
   }
 
-  // Read the optional one-hot label (3 bytes: e.g. [1, 0, 0] for dorsi).
-  // If no label arrives, treat the window as unlabeled inference-only data.
-  int label[N_CLASSES];
-  bool hasLabel = true;
-  for (int i = 0; i < N_CLASSES; i++) {
-    unsigned long start = millis();
-    while (!Serial.available()) {
-      if (millis() - start > 5000) {
-        hasLabel = false;
-        break;
-      }
+  // Read the mode byte after the payload:
+  // 'L' = labeled sample, 'U' = unlabeled inference-only sample.
+  unsigned long modeStart = millis();
+  while (!Serial.available()) {
+    if (millis() - modeStart > 2000) {
+      processWindow(values, -1);
+      Serial.println("INFER");
+      return;
     }
-    if (!hasLabel)
-      break;
-    label[i] = Serial.read();
   }
 
-  if (!hasLabel) {
+  char mode = (char)Serial.read();
+
+  if (mode == 'U') {
     processWindow(values, -1);
     Serial.println("INFER");
     return;
+  }
+
+  if (mode != 'L') {
+    processWindow(values, -1);
+    Serial.println("INVALID_MODE");
+    return;
+  }
+  Serial.print("DBG mode=");
+  Serial.println(mode);
+
+  int label[N_CLASSES];
+  for (int i = 0; i < N_CLASSES; i++) {
+    unsigned long start = millis();
+    while (!Serial.available()) {
+      if (millis() - start > 2000) {
+        processWindow(values, -1);
+        Serial.println("INVALID_LABEL");
+        return;
+      }
+    }
+    label[i] = Serial.read();
   }
 
   int labelIdx = -1;
@@ -111,7 +150,15 @@ void get_data() {
 
 void processWindow(const float *data, int labelIdx) {
   // feature extraction
+  Serial.print("DBG sample ");
+  Serial.println(labelIdx);
   extractFeatures(data, N_CHANNELS, WINDOW, features);
+  static uint8_t bagIdx = 0;
+  for (int t = 0; t < 3; t++) {
+    if (t != bagIdx % 3) // skip ét træ ad gangen, roterende
+      hats[t]->train(features, labelIdx);
+  }
+  bagIdx++;
 
   // prediction before training: per-tree
   int preds[3];
@@ -132,6 +179,7 @@ void processWindow(const float *data, int labelIdx) {
   int votes[N_CLASSES] = {0};
   for (int t = 0; t < 3; t++)
     votes[preds[t]]++;
+
   int ensemblePred = 0;
   for (int c = 1; c < N_CLASSES; c++)
     if (votes[c] > votes[ensemblePred])
@@ -139,15 +187,22 @@ void processWindow(const float *data, int labelIdx) {
 
   bool isLabeled = labelIdx >= 0 && labelIdx < N_CLASSES;
   if (isLabeled) {
-    // train all trees on instance
-    for (int t = 0; t < 3; t++)
-      hats[t]->train(features, labelIdx);
+    static uint8_t bagIdx = 0;
+
+    for (int t = 0; t < 3; t++) {
+
+      if (t != bagIdx % 3) {
+        hats[t]->train(features, labelIdx);
+      }
+    }
+    bagIdx++;
+
     labeledSamples++;
     if (ensemblePred == labelIdx)
       correctLabeledSamples++;
   }
 
-  // serial output
+  //
   Serial.print("Probs: ");
   for (int i = 0; i < N_CLASSES; i++) {
     Serial.print(avgProba[i], 4);
@@ -228,9 +283,35 @@ void setup() {
 }
 
 void loop() {
-
   if (Serial.available() > 0) {
-    get_data();
+    char command = Serial.read();
+
+    if (command == 'D') {
+
+      delay(2);
+      get_data();
+    } else if (command == 'E') {
+
+      unsigned long start = millis();
+      while (!Serial.available()) {
+        if (millis() - start > 200)
+          break;
+      }
+      if (Serial.available() && Serial.read() == 'X') {
+        Serial.println("START_EXPORT");
+        Serial.println("#ifndef TRAINED_WEIGHTS_H");
+        Serial.println("#define TRAINED_WEIGHTS_H");
+        hat0.exportSnapshot("ensemble_tree_0");
+        hat1.exportSnapshot("ensemble_tree_1");
+        hat2.exportSnapshot("ensemble_tree_2");
+        Serial.println("#endif");
+        Serial.println("END_EXPORT");
+        while (true) {
+          if (Serial.available() && Serial.read() == 'R')
+            break;
+        }
+      }
+    }
   }
 }
 

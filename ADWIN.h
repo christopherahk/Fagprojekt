@@ -138,8 +138,9 @@ private:
 
       if (fabsf(mu0 - mu1) > eps) {
         // Trim the older half of the window
-        for (int k = 0; k < (int)n1; k++)
+        while (bucketCount_ > 0 && (float)width_ > n0) {
           removeBucket();
+        }
         return true;
       }
     }

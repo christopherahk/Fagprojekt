@@ -1,5 +1,6 @@
 #pragma once
 #include "ADWIN.h"
+#include <Arduino.h>
 #include <math.h>
 #include <stdint.h>
 
@@ -47,8 +48,10 @@ public:
     // update online feature means
     updateFeatureMeans(li, features, trueLabel);
 
-    if (lf.samplesAtLeaf >= MIN_SAMPLES_SPLIT)
+    //
+    if (lf.samplesAtLeaf >= MIN_SAMPLES_SPLIT && lf.samplesAtLeaf % 50 == 0) {
       trySplit(li);
+    } // comment this to make it a naive bayes classifier without splits
   }
 
   // Return the predicted class index for a sample.
@@ -70,15 +73,72 @@ public:
   int leafCount() const { return nLeaves_; }
   int internalCount() const { return nInternals_; }
 
+  void exportSnapshot(const char *treeName) const {
+    Serial.print("# Tree snapshot: ");
+    Serial.println(treeName);
+
+    Serial.print("# nFeatures=");
+    Serial.print(nFeatures_);
+    Serial.print(" nClasses=");
+    Serial.print(nClasses_);
+    Serial.print(" nLeaves=");
+    Serial.print(nLeaves_);
+    Serial.print(" nInternals=");
+    Serial.println(nInternals_);
+
+    for (int i = 0; i < nInternals_; i++) {
+      const Internal &nd = internals_[i];
+      Serial.print("INTERNAL ");
+      Serial.print(i);
+      Serial.print(" splitFeature=");
+      Serial.print(nd.splitFeature);
+      Serial.print(" splitThreshold=");
+      Serial.print(nd.splitThreshold, 7);
+      Serial.print(" left=");
+      Serial.print(nd.left);
+      Serial.print(" right=");
+      Serial.print(nd.right);
+      Serial.print(" leftIsLeaf=");
+      Serial.print(nd.leftIsLeaf ? 1 : 0);
+      Serial.print(" rightIsLeaf=");
+      Serial.println(nd.rightIsLeaf ? 1 : 0);
+    }
+
+    for (int i = 0; i < nLeaves_; i++) {
+      const Leaf &lf = leaves_[i];
+      Serial.print("LEAF ");
+      Serial.print(i);
+      Serial.print(" parentInternal=");
+      Serial.print(lf.parentInternal);
+      Serial.print(" isRightChild=");
+      Serial.print(lf.isRightChild ? 1 : 0);
+      Serial.print(" samplesAtLeaf=");
+      Serial.print(lf.samplesAtLeaf);
+      Serial.print(" classCounts=");
+      for (int c = 0; c < nClasses_; c++) {
+        Serial.print(lf.classCounts[c], 7);
+        if (c < nClasses_ - 1)
+          Serial.print(",");
+      }
+      Serial.print(" featureMeanFirstClass=");
+      for (int f = 0; f < nFeatures_; f++) {
+        Serial.print(fromQ88(lf.featureMean[f][0]), 7);
+        if (f < nFeatures_ - 1)
+          Serial.print(",");
+      }
+      Serial.println();
+    }
+  }
+
 private:
   // LIMITED!!!!!!!!! POWEEEEERRRRRRR!!!!!!!
   // less leaves/internals for small ensemble
-  static const int MAX_LEAVES = 10;
-  static const int MAX_INTERNALS = 9;
-  static const int MAX_FEATURES = 224;
+  static const int MAX_LEAVES = 20;
+  static const int MAX_INTERNALS = 19;
+  static const int MAX_FEATURES = 336;
   static const int MAX_CLASSES = 3;
   static const int NO_PARENT = -1;
-  static const int MIN_SAMPLES_SPLIT = 20;
+  static const int MIN_SAMPLES_SPLIT = 50;
 
   static int16_t toQ88(float f) {
     float clamped = f < -128.0f ? -128.0f : (f > 127.996f ? 127.996f : f);
@@ -268,18 +328,28 @@ private:
   // Hoeffding bound split decision
 
   void trySplit(int li) {
-    // we need room for one new internal node and two new leaves
     if (nInternals_ >= MAX_INTERNALS)
       return;
     if (nLeaves_ + 1 >= MAX_LEAVES)
       return;
 
-    // find two best features by lowest Gini impurity
     float best1 = 1.0f, best2 = 1.0f;
     int bestF = -1;
     float bestThresh = 0.0f;
 
-    for (int f = 0; f < nFeatures_; f++) {
+    // Evaluate only sqrt(nFeatures_) randomly chosen features
+    // Uses a simple LCG random number generator -- no stdlib needed
+    int nCandidates = 1;
+    while (nCandidates * nCandidates < nFeatures_)
+      nCandidates++; // ceil(sqrt)
+
+    uint32_t rng =
+        (uint32_t)(leaves_[li].samplesAtLeaf * 1664525u + 1013904223u);
+
+    for (int k = 0; k < nCandidates; k++) {
+      rng = rng * 1664525u + 1013904223u;
+      int f = (int)(rng >> 16) % nFeatures_;
+
       float thresh;
       float g = giniForFeature(li, f, thresh);
       if (g < best1) {
