@@ -5,9 +5,10 @@ import os
 import serial
 import random
 from sklearn.preprocessing import StandardScaler
+import time
 
-PORT = "COM7"
-BAUD = 1_000_000
+PORT = "COM5"
+BAUD = 115200
 
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
@@ -93,10 +94,6 @@ def stream_epoch(ser, epoch_idx, windows, labels, first_send_consumed=False):
     for i, (window, label) in enumerate(combined):
         if i == 0 and first_send_consumed:
             pass
-        else:
-            trigger = ""
-            while trigger != "SEND":
-                trigger = readline(ser).strip()
 
         data_bytes = window.astype(np.float32).tobytes()
         for j in range(0, len(data_bytes), CHUNK_SIZE):
@@ -162,22 +159,43 @@ if __name__ == "__main__":
 
     np.savez("scaler.npz", mean=scaler.mean_, scale=scaler.scale_)
 
-    ser = serial.Serial(PORT, BAUD, timeout=5)
+    print("opening serial port...")
+    ser = serial.Serial(PORT, BAUD, timeout=3)
+
+    ser.setDTR(True)
+    ser.setRTS(True)
+
+
+    print("Waiting for Arduino USB stack to stabilize...")
+    time.sleep(3)
+    ser.reset_input_buffer()
+    ser.reset_output_buffer()
 
     arduino_ready = False
-    for _ in range(10):
-        if readline(ser) == "READY":
-            ser.write(b"GO\n")
-            ser.flush()
+    print("Sending 'X' handshake to Arduino...")
+
+    for i in range(10):  #
+        print(f"Ping {i+1}/10...")
+        ser.write(b"X")
+        ser.flush()
+
+        time.sleep(0.5)
+        response = readline(ser)
+        print(f"Arduino responded: '{response}'")
+
+        if "READY" in response:
             arduino_ready = True
+            print("Handshake successful! Connection established!")
+
+            ser.reset_input_buffer()
+            ser.reset_output_buffer()
             break
+        time.sleep(0.5)
 
     if not arduino_ready:
         print("Arduino Connection Failed.")
+        ser.close()
         exit()
-
-    while readline(ser).strip() != "SEND":
-        pass
 
     try:
         for epoch in range(EPOCHS):

@@ -4,7 +4,7 @@
 
 // signal dimensions
 const int N_CHANNELS = 56;
-const int WINDOW = 20;
+const int WINDOW = 16;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * WINDOW;
 const int N_FEATURES = N_CHANNELS * 4;
@@ -22,7 +22,8 @@ static float values[N_FLOATS];
 static float features[N_FEATURES];
 
 // Probability output
-static float proba[N_CLASSES];
+static float proba[3][N_CLASSES];
+static float avgProba[N_CLASSES];
 
 static uint32_t labeledSamples = 0;
 static uint32_t correctLabeledSamples = 0;
@@ -31,9 +32,16 @@ static uint32_t correctLabeledSamples = 0;
 // delta = 0.05 : split when 95% statistically confident
 // tau   = 0.05 : also split if the top two features are within 0.05 of each
 // other + epsilon has fallen below tau
-HoeffdingAdaptiveTree hat(N_FEATURES, N_CLASSES,
-                          /*delta=*/0.05f,
-                          /*tau=*/0.05f);
+// Ensemble: 3 HAT instances (prototype small ensemble)
+HoeffdingAdaptiveTree hat0(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
+                           /*tau=*/0.05f);
+HoeffdingAdaptiveTree hat1(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
+                           /*tau=*/0.05f);
+HoeffdingAdaptiveTree hat2(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
+                           /*tau=*/0.05f);
+
+// helpers to iterate
+HoeffdingAdaptiveTree *hats[3] = {&hat0, &hat1, &hat2};
 
 // Python side sends raw float bytes in CHUNK_SIZE chunks
 void get_data() {
@@ -105,31 +113,50 @@ void processWindow(const float *data, int labelIdx) {
   // feature extraction
   extractFeatures(data, N_CHANNELS, WINDOW, features);
 
-  // prediction before training
-  hat.predictProba(features, proba);
-  int pred = hat.predict(features);
+  // prediction before training: per-tree
+  int preds[3];
+  for (int t = 0; t < 3; t++) {
+    hats[t]->predictProba(features, proba[t]);
+    preds[t] = hats[t]->predict(features);
+  }
+
+  // average probabilities
+  for (int c = 0; c < N_CLASSES; c++) {
+    avgProba[c] = 0.0f;
+    for (int t = 0; t < 3; t++)
+      avgProba[c] += proba[t][c];
+    avgProba[c] /= 3.0f;
+  }
+
+  // majority vote
+  int votes[N_CLASSES] = {0};
+  for (int t = 0; t < 3; t++)
+    votes[preds[t]]++;
+  int ensemblePred = 0;
+  for (int c = 1; c < N_CLASSES; c++)
+    if (votes[c] > votes[ensemblePred])
+      ensemblePred = c;
 
   bool isLabeled = labelIdx >= 0 && labelIdx < N_CLASSES;
-
   if (isLabeled) {
-    // train on instance
-    hat.train(features, labelIdx);
+    // train all trees on instance
+    for (int t = 0; t < 3; t++)
+      hats[t]->train(features, labelIdx);
     labeledSamples++;
-    if (pred == labelIdx)
+    if (ensemblePred == labelIdx)
       correctLabeledSamples++;
   }
 
   // serial output
   Serial.print("Probs: ");
   for (int i = 0; i < N_CLASSES; i++) {
-    Serial.print(proba[i], 4);
+    Serial.print(avgProba[i], 4);
     if (i < N_CLASSES - 1)
       Serial.print(", ");
   }
   Serial.println();
-
   Serial.print("Pred: ");
-  Serial.print(CLASS_NAMES[pred]);
+  Serial.print(CLASS_NAMES[ensemblePred]);
   if (isLabeled) {
     Serial.print(" | True: ");
     Serial.println(CLASS_NAMES[labelIdx]);
@@ -139,9 +166,17 @@ void processWindow(const float *data, int labelIdx) {
 
   // Tree size diagnostics
   Serial.print("Leaves: ");
-  Serial.print(hat.leafCount());
+  Serial.print(hat0.leafCount());
+  Serial.print(",");
+  Serial.print(hat1.leafCount());
+  Serial.print(",");
+  Serial.print(hat2.leafCount());
   Serial.print(" | Internals: ");
-  Serial.println(hat.internalCount());
+  Serial.print(hat0.internalCount());
+  Serial.print(",");
+  Serial.print(hat1.internalCount());
+  Serial.print(",");
+  Serial.println(hat2.internalCount());
 
   if (isLabeled) {
     float runningAcc =
@@ -155,27 +190,48 @@ void processWindow(const float *data, int labelIdx) {
     Serial.print("/");
     Serial.print(labeledSamples);
     Serial.println(")");
-    Serial.println(pred == labelIdx ? "CORRECT" : "WRONG");
+    Serial.println(ensemblePred == labelIdx ? "CORRECT" : "WRONG");
   } else {
     Serial.println("UNLABELED");
   }
 }
 
 void setup() {
-  Serial.begin(115200);
-  // waitin on ptyhon
-  while (true) {
-    Serial.println("READY");
-    delay(500);
-    if (Serial.available()) {
-      while (Serial.available())
-        Serial.read(); // flush
+  Serial.begin(115200); // same as streamer.py BAUD
+
+  unsigned long usb_timeout = millis();
+  while (!Serial) {
+    if (millis() - usb_timeout > 4000)
       break;
+  }
+
+  delay(1000);
+  while (Serial.available()) {
+    Serial.read();
+  }
+
+  while (true) {
+    if (Serial.available() > 0) {
+      char c = Serial.read();
+      if (c == 'X') {
+
+        Serial.println("READY");
+        break;
+      }
     }
+    delay(10);
+  }
+
+  while (Serial.available()) {
+    Serial.read();
   }
 }
 
 void loop() {
-  Serial.println("SEND");
-  get_data();
+
+  if (Serial.available() > 0) {
+    get_data();
+  }
 }
+
+// fork + knife
