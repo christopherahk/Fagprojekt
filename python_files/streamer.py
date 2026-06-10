@@ -246,8 +246,8 @@ def early_stopping(ser, lines):
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-<<<<<<< HEAD
-    rat_ids = list(range(4, 11))
+
+    rat_ids = list(range(4, 10))
     print(f"Looking for data in: {data_dir}")
     print("Building subsampled dataset...")
     X, y = build_dataset(data_dir, rat_ids)
@@ -260,14 +260,7 @@ if __name__ == "__main__":
     X = X_2d.reshape(X.shape[0], X.shape[2], n_channels).transpose(0, 2, 1)
 
     np.savez("scaler.npz", mean=scaler.mean_, scale=scaler.scale_)
-=======
-    rat_ids = list(range(4, 10))
 
-    splits = load_or_build_splits(data_dir, rat_ids)
-    X_train, y_train = splits["train"]["X"], splits["train"]["y"]
-    X_val, y_val = splits["val"]["X"], splits["val"]["y"]
-    X_test, y_test = splits["test"]["X"], splits["test"]["y"]
->>>>>>> origin/main
 
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
