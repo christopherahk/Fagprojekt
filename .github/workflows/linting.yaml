@@ -39,8 +39,9 @@ jobs:
         run: |
           mkdir -p build_dir_loocv
           arduino-cli compile --fqbn arduino:mbed_nano:nano33ble \
-            --build-path ./build_dir_loocv ./cpp_part \
-            --build-property compiler.cpp.extra_flags="-DSTREAMING_USE_LOOCV" .
+            --build-path ./build_dir_loocv \
+            --build-property "compiler.cpp.extra_flags=-DSTREAMING_USE_LOOCV" \
+            ./cpp_part
 
       - name: Static Analysis (cppcheck)
         run: |
