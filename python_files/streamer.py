@@ -13,9 +13,12 @@ DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
 SEQ_LEN = 16
 CHUNK_SIZE = 256
-EPOCHS = 10
+EPOCHS = 20
 SUBSAMPLE_RATE = 20
 RANDOM_SEED = 10
+
+minimum_val_loss = np.inf
+val_loss_counter = 0
 
 CLASSES = {
     "NOSIGNAL": 0,
@@ -66,7 +69,7 @@ def wait_for_answer(ser, window_idx):
             return "timeout"
 
 def save_model_to_file(ser, filename="trained_weights.h"):
-    print("Requesting final weight dump from Arduino.")
+    print("Requesting weight dump from Arduino.")
     ser.reset_input_buffer()
     ser.write(b'EX')
     ser.flush()
@@ -82,7 +85,7 @@ def save_model_to_file(ser, filename="trained_weights.h"):
                 break
             if started:
                 f.write(line + "\n")
-    print(f"Final model saved to {filename}")
+    print(f"Model saved to {filename}")
     ser.write(b'R')
     ser.flush()
 
@@ -178,6 +181,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
 
 def run_validation(ser, X_val, y_val):
     print("Starting validation")
+
     ser.reset_input_buffer()
     ser.write(b'V')
     ser.flush()
@@ -210,12 +214,34 @@ def run_validation(ser, X_val, y_val):
     ser.flush()
 
     deadline = time.time() + 10
+    lines = []
     while time.time() < deadline:
         line = readline(ser)
         if line.startswith("VAL_LOSS") or line.startswith("VAL_ACC"):
             print(line)
+            lines.append(line)
+            with open("results_val.txt", "a") as f:
+                f.writelines(line + '\n')
+                f.close()
         if line.startswith("VAL_ACC"):
             break
+
+    return lines
+
+def early_stopping(ser, lines):
+    global minimum_val_loss
+    global val_loss_counter
+    for line in lines:
+        line = line.strip()
+        if "VAL_LOSS" in line:
+            val_loss = float(line.split(":")[1])
+
+            if val_loss < minimum_val_loss:
+                minimum_val_loss = val_loss
+                val_loss_counter = 0
+                save_model_to_file(ser, "trained_weights.h")
+            else:
+                val_loss_counter += 1
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
@@ -246,9 +272,11 @@ if __name__ == "__main__":
     try:
         for epoch in range(EPOCHS):
             stream_epoch(ser, epoch, X_train, y_train, first_send_consumed=(epoch == 0))
-            run_validation(ser, X_val, y_val)
+            lines = run_validation(ser, X_val, y_val)
+            early_stopping(ser, lines)
+            if val_loss_counter >= 5:
+                print("Early stopping triggered")
+                break
     except KeyboardInterrupt:
         print("Training interrupted by user.")
-
-    save_model_to_file(ser, "trained_weights.h")
     ser.close()
