@@ -1,19 +1,19 @@
 import numpy as np
 from scipy.signal import decimate
-from load_intan_rhd_format import read_data
+from utils import read_rhd  # Ændret fra load_intan_rhd_format
 import os
 import serial
 import random
 from sklearn.preprocessing import StandardScaler
 
-PORT = "COM3"
+PORT = "/dev/ttyACM0"
 BAUD = 1_000_000
 
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
 SEQ_LEN = 16
 CHUNK_SIZE = 256
-EPOCHS = 10
+EPOCHS = 3
 SUBSAMPLE_RATE = 20
 
 CLASSES = {
@@ -26,7 +26,7 @@ N_CLASSES = len(CLASSES)
 
 def load_and_downsample(filename, num_channels=N_CHANNELS, downsample_factor=DOWNSAMPLE_FACTOR):
     print(f"Loading {filename}")
-    result = read_data(filename)
+    result = read_rhd(filename)  # Ændret til at bruge utils.py funktionen
     data = result['amplifier_data'][:num_channels]
     t = result['t_amplifier']
 
@@ -138,7 +138,8 @@ def load_rat(path):
 def build_dataset(data_dir, rat_ids):
     X_all, y_all = [], []
     for r in rat_ids:
-        path = os.path.join(data_dir, f"rat{r}.npz")
+        # ÆNDRET: 'rat' er blevet til 'RAT'
+        path = os.path.join(data_dir, f"RAT{r}.npz")
         if os.path.exists(path):
             rms, ang = load_rat(path)
             X, y = prepare_dataset(rms, ang)
@@ -148,8 +149,8 @@ def build_dataset(data_dir, rat_ids):
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-    rat_ids = list(range(4, 10))
-
+    rat_ids = list(range(4, 11))
+    print(f"Looking for data in: {data_dir}")
     print("Building subsampled dataset...")
     X, y = build_dataset(data_dir, rat_ids)
     print(f"New Dataset Size: {len(X)} windows")
