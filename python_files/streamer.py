@@ -4,7 +4,7 @@ from utils import read_rhd  # Ændret fra load_intan_rhd_format
 import os
 import serial
 import random
-from sklearn.preprocessing import StandardScaler
+import time
 
 PORT = "/dev/ttyACM0"
 BAUD = 1_000_000
@@ -13,13 +13,17 @@ DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
 SEQ_LEN = 16
 CHUNK_SIZE = 256
-EPOCHS = 3
+EPOCHS = 20
 SUBSAMPLE_RATE = 20
+RANDOM_SEED = 10
+
+minimum_val_loss = np.inf
+val_loss_counter = 0
 
 CLASSES = {
-    "DORSIFLEXION": 0,
-    "PLANTARFLEXION": 1,
-    "PRICKING": 2
+    "NOSIGNAL": 0,
+    "DORSIFLEXION": 1,
+    "PLANTARFLEXION": 2,
 }
 
 N_CLASSES = len(CLASSES)
@@ -65,7 +69,7 @@ def wait_for_answer(ser, window_idx):
             return "timeout"
 
 def save_model_to_file(ser, filename="trained_weights.h"):
-    print("Requesting final weight dump from Arduino.")
+    print("Requesting weight dump from Arduino.")
     ser.reset_input_buffer()
     ser.write(b'EX')
     ser.flush()
@@ -81,7 +85,7 @@ def save_model_to_file(ser, filename="trained_weights.h"):
                 break
             if started:
                 f.write(line + "\n")
-    print(f"Final model saved to {filename}")
+    print(f"Model saved to {filename}")
     ser.write(b'R')
     ser.flush()
 
@@ -147,8 +151,102 @@ def build_dataset(data_dir, rat_ids):
             y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
 
+def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED):
+    os.makedirs(out_dir, exist_ok=True)
+    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
+
+    if all(os.path.exists(p) for p in paths.values()):
+        print("Splits already exist, loading")
+        return {s: np.load(p) for s, p in paths.items()}
+
+    print("Building dataset")
+    X, y = build_dataset(data_dir, rat_ids)
+    print(f"Total windows: {X.shape}")
+
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(len(X))
+    train_end = int(0.70 * len(idx))
+    val_end = int(0.85 * len(idx))
+
+    splits = {
+        "train": idx[:train_end],
+        "val": idx[train_end:val_end],
+        "test": idx[val_end:],
+    }
+
+    for name, i in splits.items():
+        np.savez(paths[name], X=X[i], y=y[i])
+        print(f"{name}: {X[i].shape}")
+
+    return {s: np.load(p) for s, p in paths.items()}
+
+def run_validation(ser, X_val, y_val):
+    print("Starting validation")
+
+    ser.reset_input_buffer()
+    ser.write(b'V')
+    ser.flush()
+    while readline(ser).strip() != "SEND":
+        pass
+    first_send_consumed = True
+
+    for i, (window, label) in enumerate(zip(X_val, y_val)):
+        if not first_send_consumed:
+            while readline(ser).strip() != "SEND":
+                pass
+        first_send_consumed = False
+
+        data_bytes = window.astype(np.float32).tobytes()
+        for j in range(0, len(data_bytes), CHUNK_SIZE):
+            ser.write(data_bytes[j:j + CHUNK_SIZE])
+            ser.flush()
+            readline(ser)
+
+        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+        one_hot[label] = 1
+        ser.write(one_hot.tobytes())
+        ser.flush()
+        wait_for_answer(ser, i)
+
+        if i % 100 == 0:
+            print(f"Validation progress: {i}/{len(X_val)}")
+
+    ser.write(b'D')
+    ser.flush()
+
+    deadline = time.time() + 10
+    lines = []
+    while time.time() < deadline:
+        line = readline(ser)
+        if line.startswith("VAL_LOSS") or line.startswith("VAL_ACC"):
+            print(line)
+            lines.append(line)
+            with open("results_val.txt", "a") as f:
+                f.writelines(line + '\n')
+                f.close()
+        if line.startswith("VAL_ACC"):
+            break
+
+    return lines
+
+def early_stopping(ser, lines):
+    global minimum_val_loss
+    global val_loss_counter
+    for line in lines:
+        line = line.strip()
+        if "VAL_LOSS" in line:
+            val_loss = float(line.split(":")[1])
+
+            if val_loss < minimum_val_loss:
+                minimum_val_loss = val_loss
+                val_loss_counter = 0
+                save_model_to_file(ser, "trained_weights.h")
+            else:
+                val_loss_counter += 1
+
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
+<<<<<<< HEAD
     rat_ids = list(range(4, 11))
     print(f"Looking for data in: {data_dir}")
     print("Building subsampled dataset...")
@@ -162,6 +260,14 @@ if __name__ == "__main__":
     X = X_2d.reshape(X.shape[0], X.shape[2], n_channels).transpose(0, 2, 1)
 
     np.savez("scaler.npz", mean=scaler.mean_, scale=scaler.scale_)
+=======
+    rat_ids = list(range(4, 10))
+
+    splits = load_or_build_splits(data_dir, rat_ids)
+    X_train, y_train = splits["train"]["X"], splits["train"]["y"]
+    X_val, y_val = splits["val"]["X"], splits["val"]["y"]
+    X_test, y_test = splits["test"]["X"], splits["test"]["y"]
+>>>>>>> origin/main
 
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
@@ -182,9 +288,12 @@ if __name__ == "__main__":
 
     try:
         for epoch in range(EPOCHS):
-            stream_epoch(ser, epoch, X, y, first_send_consumed=(epoch == 0))
+            stream_epoch(ser, epoch, X_train, y_train, first_send_consumed=(epoch == 0))
+            lines = run_validation(ser, X_val, y_val)
+            early_stopping(ser, lines)
+            if val_loss_counter >= 5:
+                print("Early stopping triggered")
+                break
     except KeyboardInterrupt:
         print("Training interrupted by user.")
-
-    save_model_to_file(ser, "trained_weights.h")
     ser.close()

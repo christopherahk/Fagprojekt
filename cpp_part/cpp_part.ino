@@ -8,7 +8,7 @@
 #include "trained_weights.h"
 #include <Arduino.h>
 
-const bool testing = false;
+bool testing = false;
 
 const int N_CHANNELS = 56;
 const int SEQ_LEN = 16;
@@ -69,6 +69,9 @@ static int windowCount = 0;
 static int batchCounter = 0;
 static int globalBatchCount = 0;
 static float currentLR = INITIAL_LR;
+
+static float total_loss = 0.0f;
+static int total_correct = 0;
 
 /*void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
@@ -208,8 +211,22 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
   }
 
-  if ((wCount % 100 == 0 && !testing) || (testing)) {
+  if ((wCount % 100 == 0 && !testing)) {
     printProbs(labelIdx, loss);
+  }
+
+  if (testing) {
+    total_loss += loss;
+
+    Tensor probs = getLoss.activation.output;
+    int pred = 0;
+    for (int i = 1; i < N_CLASSES; i++)
+      if (probs.data[i] > probs.data[pred]) {
+        pred = i;
+      }
+    if (pred == labelIdx) {
+      total_correct++;
+    }
   }
 }
 
@@ -238,7 +255,7 @@ void get_data() {
 }
 
 void setup() {
-  Serial.begin(500000);
+  Serial.begin(1000000);
   if (testing) {
   }
   while (true) {
@@ -257,18 +274,32 @@ void loop() {
     char c = Serial.read();
     if (c == 'E') {
       unsigned long start = millis();
-      while (!Serial.available()) {
+      while (!Serial.available())
         if (millis() - start > 100)
           break;
-      }
       if (Serial.available() && Serial.read() == 'X') {
         exportModel();
-        while (true) {
+        while (true)
           if (Serial.available() && Serial.read() == 'R')
             break;
-        }
         return;
       }
+    }
+    if (c == 'V') {
+      testing = true;
+      total_loss = 0.0f;
+      total_correct = 0;
+      windowCount = 0;
+    }
+    if (c == 'D') {
+      Serial.print("VAL_LOSS:");
+      Serial.println((float)total_loss / windowCount, 4);
+      Serial.print("VAL_ACC:");
+      Serial.println((float)total_correct / windowCount, 4);
+      testing = false;
+      total_loss = 0.0f;
+      total_correct = 0;
+      windowCount = 0;
     }
   }
   Serial.println("SEND");
