@@ -32,16 +32,16 @@ jobs:
 
       - name: Compile Sketch (Arduino CLI)
         run: |
-          # Create a separate folder for build artifacts
           mkdir -p build_dir
-          arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path ./build_dir .
+          arduino-cli compile --fqbn arduino:mbed_nano:nano33ble --build-path ./build_dir ./cpp_part
 
       - name: Compile Sketch (Arduino CLI, LOOCV mode)
         run: |
           mkdir -p build_dir_loocv
           arduino-cli compile --fqbn arduino:mbed_nano:nano33ble \
             --build-path ./build_dir_loocv \
-            --build-property compiler.cpp.extra_flags="-DSTREAMING_USE_LOOCV" .
+            --build-property "compiler.cpp.extra_flags=-DSTREAMING_USE_LOOCV" \
+            ./cpp_part
 
       - name: Static Analysis (cppcheck)
         run: |
