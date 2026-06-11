@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.signal import decimate
-from utils import read_rhd  # Ændret fra load_intan_rhd_format
+from utils import read_rhd
 import os
 import serial
 import random
 import time
 
-PORT = "/dev/ttyACM0"
+PORT = "COM3"
 BAUD = 1_000_000
 
 DOWNSAMPLE_FACTOR = 50
@@ -30,7 +30,7 @@ N_CLASSES = len(CLASSES)
 
 def load_and_downsample(filename, num_channels=N_CHANNELS, downsample_factor=DOWNSAMPLE_FACTOR):
     print(f"Loading {filename}")
-    result = read_rhd(filename)  # Ændret til at bruge utils.py funktionen
+    result = read_rhd(filename)
     data = result['amplifier_data'][:num_channels]
     t = result['t_amplifier']
 
@@ -68,7 +68,7 @@ def wait_for_answer(ser, window_idx):
         if not line:
             return "timeout"
 
-def save_model_to_file(ser, filename="trained_weights.h"):
+def save_model_to_file(ser, filename="cpp_part/trained_weights.h"):
     print("Requesting weight dump from Arduino.")
     ser.reset_input_buffer()
     ser.write(b'EX')
@@ -142,7 +142,6 @@ def load_rat(path):
 def build_dataset(data_dir, rat_ids):
     X_all, y_all = [], []
     for r in rat_ids:
-        # ÆNDRET: 'rat' er blevet til 'RAT'
         path = os.path.join(data_dir, f"RAT{r}.npz")
         if os.path.exists(path):
             rms, ang = load_rat(path)
@@ -246,21 +245,12 @@ def early_stopping(ser, lines):
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-
     rat_ids = list(range(4, 10))
-    print(f"Looking for data in: {data_dir}")
-    print("Building subsampled dataset...")
-    X, y = build_dataset(data_dir, rat_ids)
-    print(f"New Dataset Size: {len(X)} windows")
 
-    n_channels = X.shape[1]
-    X_2d = X.transpose(0, 2, 1).reshape(-1, n_channels)
-    scaler = StandardScaler()
-    X_2d = scaler.fit_transform(X_2d)
-    X = X_2d.reshape(X.shape[0], X.shape[2], n_channels).transpose(0, 2, 1)
-
-    np.savez("scaler.npz", mean=scaler.mean_, scale=scaler.scale_)
-
+    splits = load_or_build_splits(data_dir, rat_ids)
+    X_train, y_train = splits["train"]["X"], splits["train"]["y"]
+    X_val, y_val = splits["val"]["X"], splits["val"]["y"]
+    X_test, y_test = splits["test"]["X"], splits["test"]["y"]
 
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
