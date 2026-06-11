@@ -68,7 +68,7 @@ def wait_for_answer(ser, window_idx):
         if not line:
             return "timeout"
 
-def save_model_to_file(ser, filename="trained_weights.h"):
+def save_model_to_file(ser, filename="cpp_part/trained_weights.h"):
     print("Requesting weight dump from Arduino.")
     ser.reset_input_buffer()
     ser.write(b'EX')
