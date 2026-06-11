@@ -300,6 +300,7 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
+      currentLR = INITIAL_LR
     }
   }
   Serial.println("SEND");
