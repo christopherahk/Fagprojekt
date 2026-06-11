@@ -65,6 +65,8 @@ training_accuracy.csv
 trained_weights.h
 scaler.npz
 
+DT_test_baseline.py
+
 # pre commit
 .pre-commit-config.yaml
 

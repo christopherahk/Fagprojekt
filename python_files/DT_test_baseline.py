@@ -96,7 +96,7 @@ if __name__ == "__main__":
     print(f"Loaded dataset: X={X.shape}, y={y.shape}, groups={groups.shape}")
 
     # class distribution
-    labels = {0: "ingen", 1: "plantar", 2: "dorsi"}
+    labels = {0: "dorsi", 1: "plantar", 2: "none"}
     total = len(y)
     for label_idx in sorted(labels):
         count = int((y == label_idx).sum())

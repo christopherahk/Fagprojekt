@@ -12,7 +12,8 @@ class ADWIN {
 public:
   static const int MAX_BUCKETS = 32;
 
-  explicit ADWIN(float delta = 0.002f)
+  explicit ADWIN(
+      float delta = 0.05f) // changed from 0.002 to 0.05 for testing more drift
       : delta_(delta), width_(0), bucketCount_(0) {
     for (int i = 0; i < MAX_BUCKETS; i++) {
       buckets_[i].sum = 0.0f;

@@ -18,7 +18,7 @@ DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
 SEQ_LEN = 32
 CHUNK_SIZE = 256
-EPOCHS = 20
+EPOCHS = 10
 SUBSAMPLE_RATE = 10 # lower to increase data
 
 CLASSES = {
@@ -106,6 +106,9 @@ def wait_for_result(ser, window_idx, timeout_s=1.0):
             result.pred_name = pred_name
             result.pred_idx = ARDUINO_NAME_TO_LABEL.get(pred_name) if pred_name else None
             continue
+        # if "Resets" in line:
+        #     tqdm.write(f"  {line}")
+        #     continue
 
         if "TRAIN" in line:
             result.status = "TRAIN"
@@ -229,9 +232,11 @@ def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
 
-    y = np.zeros(len(angles_ds), dtype=np.int64)
-    y[angles_ds > 2.0]  = 1
-    y[angles_ds < -2.0] = 2
+    # Keep the Python label order aligned with Arduino:
+    # 0 = dorsi, 1 = plantar, 2 = none.
+    y = np.full(len(angles_ds), 2, dtype=np.int64)
+    y[angles_ds > 2.0] = 1
+    y[angles_ds < -2.0] = 0
 
     X_seq, y_seq = [], []
     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):

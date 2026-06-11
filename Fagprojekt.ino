@@ -31,14 +31,15 @@ static uint32_t correctLabeledSamples = 0;
 // model setup
 // delta = 0.05 : split when 95% statistically confident
 // tau   = 0.05 : also split if the top two features are within 0.05 of each
+// testing less conservative measures
 // other + epsilon has fallen below tau
 // Ensemble: 3 HAT instances (prototype small ensemble)
-HoeffdingAdaptiveTree hat0(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
-                           /*tau=*/0.05f);
-HoeffdingAdaptiveTree hat1(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
-                           /*tau=*/0.05f);
-HoeffdingAdaptiveTree hat2(N_FEATURES, N_CLASSES, /*delta=*/0.05f,
-                           /*tau=*/0.05f);
+HoeffdingAdaptiveTree hat0(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
+                           /*tau=*/0.1f);
+HoeffdingAdaptiveTree hat1(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
+                           /*tau=*/0.1f);
+HoeffdingAdaptiveTree hat2(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
+                           /*tau=*/0.1f);
 
 // helpers to iterate
 HoeffdingAdaptiveTree *hats[3] = {&hat0, &hat1, &hat2};
@@ -153,12 +154,6 @@ void processWindow(const float *data, int labelIdx) {
   Serial.print("DBG sample ");
   Serial.println(labelIdx);
   extractFeatures(data, N_CHANNELS, WINDOW, features);
-  static uint8_t bagIdx = 0;
-  for (int t = 0; t < 3; t++) {
-    if (t != bagIdx % 3) // skip ét træ ad gangen, roterende
-      hats[t]->train(features, labelIdx);
-  }
-  bagIdx++;
 
   // prediction before training: per-tree
   int preds[3];
@@ -232,6 +227,12 @@ void processWindow(const float *data, int labelIdx) {
   Serial.print(hat1.internalCount());
   Serial.print(",");
   Serial.println(hat2.internalCount());
+  Serial.print("Resets: ");
+  Serial.print(hat0.resetCount());
+  Serial.print(",");
+  Serial.print(hat1.resetCount());
+  Serial.print(",");
+  Serial.println(hat2.resetCount());
 
   if (isLabeled) {
     float runningAcc =

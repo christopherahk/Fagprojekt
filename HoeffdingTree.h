@@ -23,6 +23,7 @@ public:
     // single root start idx 0
     allocLeaf(NO_PARENT);
   }
+  int resetCount() const { return resetCount_; }
 
   // train on one labelled sample
   // predict first
@@ -37,6 +38,7 @@ public:
     lf.samplesAtLeaf++;
 
     // drift check, feed whether the current majority vote is wrong
+    // Testing disabled ADWIN
     int pred = majorityClass(li);
     bool drifted = lf.adwin.update(pred != trueLabel);
 
@@ -49,7 +51,9 @@ public:
     updateFeatureMeans(li, features, trueLabel);
 
     //
-    if (lf.samplesAtLeaf >= MIN_SAMPLES_SPLIT && lf.samplesAtLeaf % 50 == 0) {
+    if (lf.samplesAtLeaf >=
+        MIN_SAMPLES_SPLIT) { // removed && lf.samplesAtLeaf % 50 == 0 to check
+                             // for split more often
       trySplit(li);
     } // comment this to make it a naive bayes classifier without splits
   }
@@ -133,12 +137,13 @@ public:
 private:
   // LIMITED!!!!!!!!! POWEEEEERRRRRRR!!!!!!!
   // less leaves/internals for small ensemble
-  static const int MAX_LEAVES = 20;
-  static const int MAX_INTERNALS = 19;
+  static const int MAX_LEAVES = 20;    // i think 20 is enough but testing 30
+  static const int MAX_INTERNALS = 19; // should be 1 less than max leaves
   static const int MAX_FEATURES = 336;
   static const int MAX_CLASSES = 3;
   static const int NO_PARENT = -1;
-  static const int MIN_SAMPLES_SPLIT = 50;
+  static const int MIN_SAMPLES_SPLIT = 30; // changed from 50
+  int resetCount_ = 0;
 
   static int16_t toQ88(float f) {
     float clamped = f < -128.0f ? -128.0f : (f > 127.996f ? 127.996f : f);
@@ -436,6 +441,7 @@ private:
     Leaf &lf = leaves_[li];
     lf.adwin.reset();
     lf.samplesAtLeaf = 0;
+    resetCount_++;
 
     for (int c = 0; c < nClasses_; c++) {
       lf.classCounts[c] = 0.0f;

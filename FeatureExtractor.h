@@ -49,6 +49,6 @@ static void extractFeatures(const float *signal, int nChannels, int window,
     out[base + 2] = rms;
     out[base + 3] = maxAbs;
     out[base + 4] = (float)zc / (float)(window - 1);
-    out[base + 5] = wl;
+    out[base + 5] = logf(1.0f + wl);
   }
 }
