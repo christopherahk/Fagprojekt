@@ -71,6 +71,9 @@ splits/val.npz
 splits/train.npz
 splits/test.npz
 
+splits_logo/*
+
+
 DT_test_baseline.py
 
 # pre commit

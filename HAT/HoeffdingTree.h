@@ -53,9 +53,10 @@ public:
     //
     if (lf.samplesAtLeaf >=
         MIN_SAMPLES_SPLIT) { // removed && lf.samplesAtLeaf % 50 == 0 to check
-                             // for split more often
+                             // dfor split more often
       trySplit(li);
-    } // comment this to make it a naive bayes classifier without splits
+    } // comment this to make it a naive bayes classifier without splits,
+      // according to claude
   }
 
   // Return the predicted class index for a sample.
@@ -210,8 +211,6 @@ private:
     return li;
   }
 
-  // allocate a new internal node
-  // returns internal index, or -1 if pool is full
   int allocInternal(int parentInternal) {
     if (nInternals_ >= MAX_INTERNALS)
       return -1;
@@ -221,8 +220,6 @@ private:
     return ii;
   }
 
-  // walk the tree from the root and return leaf index that the feature vector
-  // routes to
   int traverseToLeaf(const float *features) const {
     // If the tree has no internal nodes yet
     if (nInternals_ == 0)
@@ -343,7 +340,7 @@ private:
     float bestThresh = 0.0f;
 
     // Evaluate only sqrt(nFeatures_) randomly chosen features
-    // Uses a simple LCG random number generator -- no stdlib needed
+    // Uses a simple LCG random number generator no stdlib needed
     int nCandidates = 1;
     while (nCandidates * nCandidates < nFeatures_)
       nCandidates++; // ceil(sqrt)
@@ -382,8 +379,8 @@ private:
   }
 
   // Convert the current leaf into an internal split node.
-  // Allocates two new leaves as children and transfers the class count
-  // distribution from the old leaf to the children.
+  // two new leaves as children and transfers the class count distribution from
+  // the old leaf to the children.
   void doSplit(int li, int feature, float threshold) {
     Leaf &oldLeaf = leaves_[li];
 
@@ -435,8 +432,7 @@ private:
 
   // When ADWIN detects drift in a leaf, zero out all statistics so the leaf
   // starts learning from scratch with the new distribution the leaf stays in
-  // the tree at the same position, no change needed, which keeps implementation
-  // simple
+  // the tree at the same position
   void resetLeaf(int li) {
     Leaf &lf = leaves_[li];
     lf.adwin.reset();

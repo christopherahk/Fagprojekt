@@ -1,7 +1,7 @@
 #include "FeatureExtractor.h"
 #define MF_LAMBDA 6.0f
-#define MF_N_TREES 24
-#define MF_MAX_NODES 63
+#define MF_N_TREES 18
+#define MF_MAX_NODES 127
 #include "MondrianForest.h"
 #include <Arduino.h>
 
@@ -26,8 +26,7 @@ static float val_loss = 0.0f;
 
 MondrianForest mf;
 
-// ── Read one window of raw signal data ───────────────────────────────────────
-// Returns true on success, false on timeout.
+// read window
 bool readSignal() {
   int received = 0;
   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
@@ -43,13 +42,12 @@ bool readSignal() {
     }
     for (int i = 0; i < to_read; i++)
       buf[received++] = Serial.read();
-    // No ACK -- streamer.py does not expect it and it clogs the buffer
   }
   return true;
 }
 
-// ── Read mode byte then one-hot label ────────────────────────────────────────
-// Mode 'L' = labeled (train), 'U' = unlabeled (val/infer only).
+// one hot
+// Mode L = labeled (train), U = unlabeled (val/infer only).
 // Returns label index 0-2, or -1 for unlabeled/error.
 int readLabel() {
   unsigned long start = millis();
@@ -59,7 +57,6 @@ int readLabel() {
   }
   char mode = (char)Serial.read();
 
-  // Read the 3-byte one-hot regardless of mode
   int label[N_CLASSES];
   for (int i = 0; i < N_CLASSES; i++) {
     unsigned long s = millis();
@@ -71,7 +68,7 @@ int readLabel() {
   }
 
   if (mode == 'U')
-    return -1; // unlabeled -- infer only
+    return -1; // unlabeled infer only
 
   for (int i = 0; i < N_CLASSES; i++)
     if (label[i] == 1)
@@ -79,15 +76,15 @@ int readLabel() {
   return -1;
 }
 
-// ── Process one window: extract features, predict, optionally train
-// ───────────
+// Process one window, extract features, predict, optionally train
+
 void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   extractFeatures(values, N_CHANNELS, WINDOW, features);
 
   mf.predictProba(features, proba);
   int pred = mf.predict(features);
 
-  // Cross-entropy loss (used for val reporting and early stopping)
+  // Cross-entropy loss
   float loss = 0.0f;
   if (labelIdx >= 0) {
     float p = proba[labelIdx];
@@ -107,7 +104,7 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   }
 
   if (!doValidate) {
-    // Training mode -- send full output for Python logging
+    // Training mode
     Serial.print("Probs: ");
     for (int i = 0; i < N_CLASSES; i++) {
       Serial.print(proba[i], 4);
@@ -120,12 +117,9 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   }
 }
 
-// ── Setup
-// ─────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(1000000);
 
-  // Wait for "GO\n" handshake from Python
   while (true) {
     Serial.println("READY");
     delay(200);
@@ -134,7 +128,7 @@ void setup() {
       Serial.readBytes(buf, 3);
       if (strncmp(buf, "GO\n", 3) == 0)
         break;
-      // Flush unexpected bytes and retry
+
       while (Serial.available())
         Serial.read();
     }
@@ -143,10 +137,8 @@ void setup() {
     Serial.read();
 }
 
-// ── Main loop
-// ─────────────────────────────────────────────────────────────────
 void loop() {
-  // Signal Python that we are ready for next window
+
   Serial.println("SEND");
 
   // Wait for command byte
@@ -155,7 +147,7 @@ void loop() {
   char cmd = Serial.read();
 
   if (cmd == 'D') {
-    // ── Training window ───────────────────────────────────────────────
+
     if (!readSignal())
       return;
     int labelIdx = readLabel();
@@ -163,9 +155,7 @@ void loop() {
     Serial.println("TRAIN");
 
   } else if (cmd == 'V') {
-    // ── Start validation pass ─────────────────────────────────────────
-    // Python sends 'V' then streams windows with 'D' + 'U' + label.
-    // After all val windows, Python sends 'F' to finish.
+
     val_total = 0;
     val_correct = 0;
     val_loss = 0.0f;
@@ -177,7 +167,7 @@ void loop() {
       char vcmd = Serial.read();
 
       if (vcmd == 'F')
-        break; // end of validation
+        break;
 
       if (vcmd == 'D') {
         if (!readSignal())
@@ -188,7 +178,6 @@ void loop() {
       }
     }
 
-    // Report validation results
     float avgLoss = val_total > 0 ? val_loss / val_total : 0.0f;
     float acc = val_total > 0 ? (float)val_correct / val_total : 0.0f;
     Serial.print("VAL_LOSS:");
@@ -197,7 +186,7 @@ void loop() {
     Serial.println(acc, 4);
 
   } else if (cmd == 'E') {
-    // ── Export model snapshot ─────────────────────────────────────────
+
     unsigned long start = millis();
     while (!Serial.available() && millis() - start < 200)
       ;

@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
-        # Plot 1: Antal træer vs Valideringsnøjagtighed
+        # trees vs val score
         trees = [t.params['n_trees'] for t in completed]
         scores = [t.value for t in completed]
         nodes = [t.params['max_nodes'] for t in completed]
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         axes[0].set_title('Ensemble Size vs Performance')
         axes[0].grid(True, linestyle='--', alpha=0.5)
 
-        # Plot 2: Fordeling af de bedste noder i top 20
+        # best nodes
         top20_nodes = [t.params['max_nodes'] for t in sorted(completed, key=lambda t: t.value, reverse=True)[:20]]
         unique, counts = np.unique(top20_nodes, return_counts=True)
         axes[1].bar([str(u) for u in unique], counts, color='teal', edgecolor='k', alpha=0.8)

@@ -11,7 +11,7 @@ except ImportError:
     print("Could not import streamer.py -- make sure this file sits next to it.")
     sys.exit(1)
 
-#LEAVE ONE GROUP OUT CROSS VALIDATION
+#LEAVE ONE RAT OUT CROSS VALIDATION
 # feature extraction (mirrors FeatureExtractor.h)
 def extract_features(X: np.ndarray) -> np.ndarray:
     """
@@ -59,12 +59,12 @@ def load_dataset(data_dir: str, rat_ids: list):
     return np.concatenate(Xs), np.concatenate(ys), np.array(groups)
 
 
-# LOGO evaluation with per-fold normalisation
-def logo_eval(name: str, clf, X_feat: np.ndarray,
+# LORO evaluation with per-fold normalisation
+def loro_eval(name: str, clf, X_feat: np.ndarray,
               y: np.ndarray, groups: np.ndarray,
               rat_ids: list, class_names: list):
     """
-    Leave-One-Group-Out cross-validation.
+    Leave-One-Rat-Out cross-validation.
     Scaler is fit on training folds only -- no data leakage.
     """
     logo   = LeaveOneGroupOut()
@@ -130,33 +130,32 @@ if __name__ == "__main__":
     print(f"Feature matrix: {X_feat.shape}")
 
     # ── Model 1: offline RF  best achievable ceiling
-    # This is the gold standard: unlimited trees, full data, offline training.
-    # If HAT on Arduino matches this it is performing optimally.
+
     rf_ceiling = RandomForestClassifier(
         n_estimators=500,
         max_depth=3,
         random_state=42,
         n_jobs=-1,
     )
-    ceiling_scores = logo_eval(
+    ceiling_scores = loro_eval(
         "RF ceiling  (500 trees, depth 3)  -- best offline achievable",
         rf_ceiling, X_feat, y, groups, RAT_IDS, CLASS_NAMES,
     )
 
-    # ── Model 2: RF matched to HAT ensemble (3 trees, depth ~4) ────────────
+    # Model 2: RF matched to HAT ensemble (3 trees, depth ~4)
     # HAT with MAX_LEAVES=20 can reach depth ~4.
-    # This shows what a forest of the same capacity achieves offline.
+
     rf_matched = RandomForestClassifier(
         n_estimators=3,
         max_depth=12,
         random_state=42,
     )
-    matched_scores = logo_eval(
+    matched_scores = loro_eval(
         "RF matched to HAT  (3 trees, depth 4)  -- fair offline comparison",
         rf_matched, X_feat, y, groups, RAT_IDS, CLASS_NAMES,
     )
 
-    # ── Summary ─────────────────────────────────────────────────────────────
+    # summary
     print("\n" + "="*60)
     print("  SUMMARY")
     print("="*60)

@@ -1,16 +1,9 @@
 """
-LOGO split generator for rat neural signal dataset.
-====================================================
+LORO split generator for rat neural signal dataset.
+
 Generates leave-one-rat-out train/val splits and saves them
 to ./splits_logo/rat_{test_rat}/ for use with streamer.py
 and bayesian_opt.py.
-
-Place next to streamer.py and run once:
-  python logo_splits.py
-
-Then in bayesian_opt.py, load with:
-  from logo_splits import load_logo_split
-  X_train, y_train, X_val, y_val = load_logo_split(test_rat=9)
 """
 
 import os
@@ -18,14 +11,13 @@ import numpy as np
 from pathlib import Path
 from sklearn.preprocessing import RobustScaler
 
-# ── import from your project ──────────────────────────────────────────────────
 try:
     from streamer import load_rat, prepare_dataset, N_CHANNELS
 except ImportError:
     raise ImportError("Place this file next to streamer.py")
 
 DATA_DIR = Path("./dataset_rats_50w")
-RAT_IDS  = list(range(4, 10))
+RAT_IDS  = list(range(4, 11))
 OUT_DIR  = Path("./splits_logo")
 
 
@@ -74,7 +66,7 @@ def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
         X_val_raw   = all_X[test_mask]
         y_val       = all_y[test_mask]
 
-        # Scale using ONLY training rats' statistics -- no leakage
+        # Scale using ONLY training rats
         n_ch    = X_train_raw.shape[1]
         scaler  = RobustScaler()
 

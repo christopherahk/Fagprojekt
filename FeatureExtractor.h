@@ -2,26 +2,27 @@
 #include <math.h>
 
 // Feature extraction: RBI (4 bins) + FFT power spectrum per channel
-// ------------------------------------------------------------------
-// Combines two complementary feature types:
+// Combines two related feature types:
 //
 //   RBI (Rectification and Bin-Integration):
 //     Captures WHEN amplitude is high within the window.
 //     4 bins * 56 channels = 224 features.
-//     Computed as: |signal| summed over each bin, log1p compressed.
-//
+//     Computed as: |signal| summed over each bin, log1p compressed. they used
+//     this in "Classification of naturally evoked compound action potentials in
+//     peripheral nerve spatiotemporal recordings" Ryan G. L. Koh, Adrian I.
+//     Nachman & José Zariffa
+
 //   FFT power spectrum:
 //     Captures WHICH frequencies are present.
 //     17 bins * 56 channels = 952 features.
 //     Hanning windowed, log1p compressed.
-//
+
 //   Total: 56 * (4 + 17) = 56 * 21 = 1176 features
-//
+
 // Both use log1p compression to fit Q8.8 fixed-point range [-128, 127].
-//
+
 // Input:  float[nChannels * window]  (row-major: channel 0 first)
 // Output: float[nChannels * (N_RBI_BINS + window/2 + 1)]
-//
 // No heap allocation -- writes directly into caller's buffer.
 
 static const int N_RBI_BINS = 4;
@@ -38,7 +39,7 @@ static void fft_power(const float *in, int N, float *power_out) {
     im[i] = 0.0f;
   }
 
-  // Bit-reversal permutation
+  // bit-reversal permutation
   int j = 0;
   for (int i = 1; i < N; i++) {
     int bit = N >> 1;

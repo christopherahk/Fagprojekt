@@ -24,7 +24,6 @@ CLASS_NAMES = ("dorsi", "plantar", "none")  # must match Arduino
 minimum_val_loss = np.inf
 val_loss_counter = 0
 
-# ── Serial helpers ────────────────────────────────────────────────────────────
 
 def readline(ser):
     try:
@@ -86,7 +85,6 @@ def send_signal(ser, window):
         ser.flush()
         time.sleep(0.002)
 
-# ── Dataset ───────────────────────────────────────────────────────────────────
 
 def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
@@ -163,7 +161,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
 
     return {s: np.load(p) for s, p in paths.items()}
 
-# ── Training epoch ────────────────────────────────────────────────────────────
+
 
 def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
     print(f"\n--- Epoch {epoch_idx + 1}/{EPOCHS} ---")
@@ -218,13 +216,12 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
     final_f1  = calculate_macro_f1(running_cm)
     print(f"Epoch {epoch_idx+1} final -- Acc: {final_acc*100:.2f}%  F1: {final_f1:.4f}")
 
-# ── Validation pass ───────────────────────────────────────────────────────────
-
+# val pass
 def run_validation(ser, X_val, y_val):
     print("\nValidation pass...")
     ser.reset_input_buffer()
 
-    # Tell Arduino to enter validation mode
+
     ser.write(b"V")
     ser.flush()
 
@@ -236,25 +233,25 @@ def run_validation(ser, X_val, y_val):
         ser.flush()
         send_signal(ser, window)
 
-        # 'U' mode = infer only (no training), but still send label for loss
+        # U mode = infer only (no training), but still send label for loss
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
         one_hot[label] = 1
         ser.write(b"U")
         ser.write(one_hot.tobytes())
         ser.flush()
 
-        # Wait for INFER acknowledgement
+
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             line = readline(ser)
             if line == "INFER":
                 break
 
-    # Send 'F' to signal end of validation
+    # Send F to signal end of validation
     ser.write(b"F")
     ser.flush()
 
-    # Wait for VAL_LOSS and VAL_ACC lines
+
     val_lines = []
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
@@ -269,7 +266,7 @@ def run_validation(ser, X_val, y_val):
 
     return val_lines
 
-# ── Early stopping ────────────────────────────────────────────────────────────
+
 
 def calculate_macro_f1(cm):
     f1s = []
@@ -313,7 +310,7 @@ def early_stopping_check(ser, val_lines):
             except Exception:
                 pass
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
@@ -334,7 +331,7 @@ if __name__ == "__main__":
     print("Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
-    # Handshake
+    # handoshake
     arduino_ready = False
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
@@ -351,7 +348,7 @@ if __name__ == "__main__":
         print("Arduino not responding.")
         f_csv.close(); ser.close(); exit()
 
-    # Flush any leftover bytes after handshake
+
     time.sleep(0.5)
     ser.reset_input_buffer()
 

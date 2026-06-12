@@ -5,8 +5,7 @@
 // ADWIN (ADaptive WINdowing) drift detector
 // Splits the window into two halves and tests whether the error rate has
 // changed significantly, if so drift happened Memory: O(log N) buckets. At
-// MAX_BUCKETS=32:
-//   32 * (4 + 2) bytes = 192 bytes per instance
+// MAX_BUCKETS=32: 32 * (4 + 2) bytes = 192 bytes per instance
 
 class ADWIN {
 public:
@@ -44,7 +43,6 @@ public:
 
 private:
   // Each bucket holds a compressed block of observations
-  // count is always a power of 2
   struct Bucket {
     float sum;
     int16_t count;
@@ -112,8 +110,8 @@ private:
 
   // Hoeffding-bound drift test
   // Scans all split points (W0 | W1) of the current window
-  // If |mean(W0) - mean(W1)| exceeds the bound, drift is detected and the
-  // oldest part of window is dropped
+  // If |mean(W0) - mean(W1)| exceeds bound, drift is detected and the oldest
+  // part of window is dropped
   bool detectDrift() {
     if (width_ < 4)
       return false;
