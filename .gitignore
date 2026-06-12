@@ -68,4 +68,5 @@ splits/
 data/*
 dataset_rats/
 dataset_rats_50w/
+dataset_rats_test/
 python_files/intanutil/

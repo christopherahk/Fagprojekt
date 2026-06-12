@@ -1,0 +1,576 @@
+==================================================
+Testing on RAT 4
+==================================================
+Train: (28172, 16, 56) | Val: (6037, 16, 56) | Held-out: (6037, 16, 56) | Test rat: (7284, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 07:46:54,171] A new study created in memory with name: no-name-5a9d8205-e01d-4834-80ec-bd1609d375f8
+[I 2026-06-12 07:48:14,186] Trial 0 finished with value: 0.7760477058141461 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.7760477058141461.
+[I 2026-06-12 07:50:32,626] Trial 1 finished with value: 0.8191154546960411 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8191154546960411.
+[I 2026-06-12 07:51:04,167] Trial 2 finished with value: 0.7990723869471592 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8191154546960411.
+[I 2026-06-12 07:53:00,455] Trial 3 finished with value: 0.8782507868146431 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 07:54:26,476] Trial 4 finished with value: 0.817293357627961 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 08:01:52,530] Trial 5 finished with value: 0.3766771575285738 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 08:03:14,249] Trial 6 finished with value: 0.8105019049196621 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 08:03:57,738] Trial 7 finished with value: 0.6980288222627132 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 08:04:50,587] Trial 8 finished with value: 0.7584893158853735 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8782507868146431.
+[I 2026-06-12 08:05:45,697] Trial 9 finished with value: 0.7775385125062116 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.8782507868146431.
+Best trial: 3. Best value: 0.878251: 100%|█████████████████████████████████████████████████████████████████| 10/10 [18:51<00:00, 113.15s/it]
+
+Best trial val_acc: 0.8783
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0751 | val_loss: 1.0206 | val_acc: 0.4788
+Epoch 2/50 - train_loss: 0.9394 | val_loss: 0.8534 | val_acc: 0.6054
+Epoch 3/50 - train_loss: 0.8002 | val_loss: 0.7345 | val_acc: 0.6518
+Epoch 4/50 - train_loss: 0.7195 | val_loss: 0.6759 | val_acc: 0.6713
+Epoch 5/50 - train_loss: 0.6667 | val_loss: 0.6256 | val_acc: 0.7081
+Epoch 6/50 - train_loss: 0.6274 | val_loss: 0.6354 | val_acc: 0.6929
+Epoch 7/50 - train_loss: 0.6001 | val_loss: 0.5736 | val_acc: 0.7336
+Epoch 8/50 - train_loss: 0.5763 | val_loss: 0.5452 | val_acc: 0.7568
+Epoch 9/50 - train_loss: 0.5552 | val_loss: 0.6249 | val_acc: 0.7013
+Epoch 10/50 - train_loss: 0.5382 | val_loss: 0.5516 | val_acc: 0.7481
+Epoch 11/50 - train_loss: 0.5257 | val_loss: 0.5621 | val_acc: 0.7510
+Epoch 12/50 - train_loss: 0.5016 | val_loss: 0.4785 | val_acc: 0.7977
+Epoch 13/50 - train_loss: 0.4886 | val_loss: 0.5255 | val_acc: 0.7654
+Epoch 14/50 - train_loss: 0.4728 | val_loss: 0.5252 | val_acc: 0.7679
+Epoch 15/50 - train_loss: 0.4577 | val_loss: 0.4395 | val_acc: 0.8069
+Epoch 16/50 - train_loss: 0.4437 | val_loss: 0.4370 | val_acc: 0.8118
+Epoch 17/50 - train_loss: 0.4353 | val_loss: 0.4300 | val_acc: 0.8161
+Epoch 18/50 - train_loss: 0.4260 | val_loss: 0.4174 | val_acc: 0.8198
+Epoch 19/50 - train_loss: 0.4187 | val_loss: 0.4240 | val_acc: 0.8221
+Epoch 20/50 - train_loss: 0.4060 | val_loss: 0.3843 | val_acc: 0.8277
+Epoch 21/50 - train_loss: 0.4037 | val_loss: 0.3913 | val_acc: 0.8272
+Epoch 22/50 - train_loss: 0.3939 | val_loss: 0.3695 | val_acc: 0.8435
+Epoch 23/50 - train_loss: 0.3912 | val_loss: 0.4227 | val_acc: 0.8120
+Epoch 24/50 - train_loss: 0.3897 | val_loss: 0.3841 | val_acc: 0.8371
+Epoch 25/50 - train_loss: 0.3789 | val_loss: 0.4036 | val_acc: 0.8240
+Epoch 26/50 - train_loss: 0.3706 | val_loss: 0.4070 | val_acc: 0.8274
+Epoch 27/50 - train_loss: 0.3714 | val_loss: 0.4153 | val_acc: 0.8170
+Epoch 28/50 - train_loss: 0.3700 | val_loss: 0.3625 | val_acc: 0.8406
+Epoch 29/50 - train_loss: 0.3625 | val_loss: 0.4392 | val_acc: 0.8057
+Epoch 30/50 - train_loss: 0.3569 | val_loss: 0.3524 | val_acc: 0.8511
+Epoch 31/50 - train_loss: 0.3590 | val_loss: 0.3724 | val_acc: 0.8426
+Epoch 32/50 - train_loss: 0.3582 | val_loss: 0.3611 | val_acc: 0.8453
+Epoch 33/50 - train_loss: 0.3520 | val_loss: 0.3509 | val_acc: 0.8498
+Epoch 34/50 - train_loss: 0.3495 | val_loss: 0.3701 | val_acc: 0.8352
+Epoch 35/50 - train_loss: 0.3413 | val_loss: 0.3590 | val_acc: 0.8496
+Epoch 36/50 - train_loss: 0.3397 | val_loss: 0.3444 | val_acc: 0.8517
+Epoch 37/50 - train_loss: 0.3385 | val_loss: 0.3477 | val_acc: 0.8560
+Epoch 38/50 - train_loss: 0.3338 | val_loss: 0.3692 | val_acc: 0.8390
+Epoch 39/50 - train_loss: 0.3308 | val_loss: 0.4306 | val_acc: 0.8285
+Epoch 40/50 - train_loss: 0.3344 | val_loss: 0.3623 | val_acc: 0.8461
+Epoch 41/50 - train_loss: 0.3314 | val_loss: 0.3626 | val_acc: 0.8468
+Epoch 42/50 - train_loss: 0.3229 | val_loss: 0.3355 | val_acc: 0.8554
+Epoch 43/50 - train_loss: 0.3196 | val_loss: 0.3226 | val_acc: 0.8615
+Epoch 44/50 - train_loss: 0.3164 | val_loss: 0.3576 | val_acc: 0.8461
+Epoch 45/50 - train_loss: 0.3179 | val_loss: 0.3120 | val_acc: 0.8667
+Epoch 46/50 - train_loss: 0.3106 | val_loss: 0.4233 | val_acc: 0.8274
+Epoch 47/50 - train_loss: 0.3142 | val_loss: 0.3074 | val_acc: 0.8712
+Epoch 48/50 - train_loss: 0.3078 | val_loss: 0.3108 | val_acc: 0.8728
+Epoch 49/50 - train_loss: 0.3044 | val_loss: 0.3773 | val_acc: 0.8428
+Epoch 50/50 - train_loss: 0.3090 | val_loss: 0.3364 | val_acc: 0.8574
+              precision    recall  f1-score   support
+
+     Neutral       0.82      0.79      0.80      1514
+       Dorsi       0.84      0.92      0.88      1917
+     Plantar       0.91      0.85      0.88      1701
+
+    accuracy                           0.86      5132
+   macro avg       0.86      0.85      0.85      5132
+weighted avg       0.86      0.86      0.86      5132
+
+
+==================================================
+Testing on RAT 5
+==================================================
+Train: (28558, 16, 56) | Val: (6120, 16, 56) | Held-out: (6120, 16, 56) | Test rat: (6732, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 08:07:39,718] A new study created in memory with name: no-name-cf4a049d-2706-4f83-aa1d-3f262903713d
+[I 2026-06-12 08:09:01,141] Trial 0 finished with value: 0.8104575163398693 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.8104575163398693.
+[I 2026-06-12 08:12:26,916] Trial 1 finished with value: 0.8436274509803922 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8436274509803922.
+[I 2026-06-12 08:12:59,138] Trial 2 finished with value: 0.8196078431372549 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8436274509803922.
+[I 2026-06-12 08:14:37,390] Trial 3 finished with value: 0.848202614379085 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:16:06,941] Trial 4 finished with value: 0.838562091503268 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:23:21,609] Trial 5 finished with value: 0.3668300653594771 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:24:41,665] Trial 6 finished with value: 0.8312091503267974 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:25:25,296] Trial 7 finished with value: 0.7290849673202614 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:26:18,880] Trial 8 finished with value: 0.8053921568627451 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.848202614379085.
+[I 2026-06-12 08:27:13,895] Trial 9 finished with value: 0.7524509803921569 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.848202614379085.
+Best trial: 3. Best value: 0.848203: 100%|█████████████████████████████████████████████████████████████████| 10/10 [19:34<00:00, 117.42s/it]
+
+Best trial val_acc: 0.8482
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0621 | val_loss: 0.9633 | val_acc: 0.5111
+Epoch 2/50 - train_loss: 0.8640 | val_loss: 0.7646 | val_acc: 0.6346
+Epoch 3/50 - train_loss: 0.7143 | val_loss: 0.6561 | val_acc: 0.6967
+Epoch 4/50 - train_loss: 0.6486 | val_loss: 0.6599 | val_acc: 0.6820
+Epoch 5/50 - train_loss: 0.6036 | val_loss: 0.6298 | val_acc: 0.7122
+Epoch 6/50 - train_loss: 0.5705 | val_loss: 0.5558 | val_acc: 0.7543
+Epoch 7/50 - train_loss: 0.5428 | val_loss: 0.5430 | val_acc: 0.7562
+Epoch 8/50 - train_loss: 0.5279 | val_loss: 0.5581 | val_acc: 0.7534
+Epoch 9/50 - train_loss: 0.5031 | val_loss: 0.5474 | val_acc: 0.7664
+Epoch 10/50 - train_loss: 0.4824 | val_loss: 0.5129 | val_acc: 0.7814
+Epoch 11/50 - train_loss: 0.4712 | val_loss: 0.4401 | val_acc: 0.7978
+Epoch 12/50 - train_loss: 0.4497 | val_loss: 0.4227 | val_acc: 0.8222
+Epoch 13/50 - train_loss: 0.4336 | val_loss: 0.4272 | val_acc: 0.8007
+Epoch 14/50 - train_loss: 0.4265 | val_loss: 0.4484 | val_acc: 0.8058
+Epoch 15/50 - train_loss: 0.4161 | val_loss: 0.4227 | val_acc: 0.8214
+Epoch 16/50 - train_loss: 0.4021 | val_loss: 0.4142 | val_acc: 0.8260
+Epoch 17/50 - train_loss: 0.3992 | val_loss: 0.3799 | val_acc: 0.8378
+Epoch 18/50 - train_loss: 0.3873 | val_loss: 0.3927 | val_acc: 0.8349
+Epoch 19/50 - train_loss: 0.3831 | val_loss: 0.3682 | val_acc: 0.8424
+Epoch 20/50 - train_loss: 0.3755 | val_loss: 0.4049 | val_acc: 0.8245
+Epoch 21/50 - train_loss: 0.3777 | val_loss: 0.3556 | val_acc: 0.8499
+Epoch 22/50 - train_loss: 0.3607 | val_loss: 0.3587 | val_acc: 0.8401
+Epoch 23/50 - train_loss: 0.3686 | val_loss: 0.3451 | val_acc: 0.8520
+Epoch 24/50 - train_loss: 0.3559 | val_loss: 0.3467 | val_acc: 0.8529
+Epoch 25/50 - train_loss: 0.3552 | val_loss: 0.3355 | val_acc: 0.8647
+Epoch 26/50 - train_loss: 0.3555 | val_loss: 0.4050 | val_acc: 0.8260
+Epoch 27/50 - train_loss: 0.3446 | val_loss: 0.3392 | val_acc: 0.8589
+Epoch 28/50 - train_loss: 0.3418 | val_loss: 0.3463 | val_acc: 0.8562
+Epoch 29/50 - train_loss: 0.3427 | val_loss: 0.3264 | val_acc: 0.8631
+Epoch 30/50 - train_loss: 0.3412 | val_loss: 0.3393 | val_acc: 0.8627
+Epoch 31/50 - train_loss: 0.3450 | val_loss: 0.3697 | val_acc: 0.8483
+Epoch 32/50 - train_loss: 0.3294 | val_loss: 0.3336 | val_acc: 0.8576
+Epoch 33/50 - train_loss: 0.3200 | val_loss: 0.3107 | val_acc: 0.8716
+Epoch 34/50 - train_loss: 0.3207 | val_loss: 0.3443 | val_acc: 0.8502
+Epoch 35/50 - train_loss: 0.3244 | val_loss: 0.3669 | val_acc: 0.8458
+Epoch 36/50 - train_loss: 0.3121 | val_loss: 0.3084 | val_acc: 0.8718
+Epoch 37/50 - train_loss: 0.3151 | val_loss: 0.3451 | val_acc: 0.8451
+Epoch 38/50 - train_loss: 0.3086 | val_loss: 0.3107 | val_acc: 0.8749
+Epoch 39/50 - train_loss: 0.3062 | val_loss: 0.3817 | val_acc: 0.8414
+Epoch 40/50 - train_loss: 0.3251 | val_loss: 0.3107 | val_acc: 0.8702
+Epoch 41/50 - train_loss: 0.3031 | val_loss: 0.2907 | val_acc: 0.8785
+Epoch 42/50 - train_loss: 0.2959 | val_loss: 0.2966 | val_acc: 0.8770
+Epoch 43/50 - train_loss: 0.3006 | val_loss: 0.3031 | val_acc: 0.8737
+Epoch 44/50 - train_loss: 0.2950 | val_loss: 0.2877 | val_acc: 0.8785
+Epoch 45/50 - train_loss: 0.2993 | val_loss: 0.3112 | val_acc: 0.8683
+Epoch 46/50 - train_loss: 0.2967 | val_loss: 0.3294 | val_acc: 0.8597
+Epoch 47/50 - train_loss: 0.2984 | val_loss: 0.2950 | val_acc: 0.8797
+Epoch 48/50 - train_loss: 0.2944 | val_loss: 0.2913 | val_acc: 0.8775
+Epoch 49/50 - train_loss: 0.2947 | val_loss: 0.3010 | val_acc: 0.8750
+Epoch 50/50 - train_loss: 0.2850 | val_loss: 0.2818 | val_acc: 0.8858
+              precision    recall  f1-score   support
+
+     Neutral       0.80      0.89      0.84      1599
+       Dorsi       0.95      0.87      0.91      1913
+     Plantar       0.91      0.90      0.91      1690
+
+    accuracy                           0.89      5202
+   macro avg       0.89      0.89      0.89      5202
+weighted avg       0.89      0.89      0.89      5202
+
+
+==================================================
+Testing on RAT 6
+==================================================
+Train: (28603, 16, 56) | Val: (6129, 16, 56) | Held-out: (6130, 16, 56) | Test rat: (6668, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 08:29:42,917] A new study created in memory with name: no-name-ff794afa-04fa-4af4-b908-59f78fed4c5e
+[I 2026-06-12 08:31:05,080] Trial 0 finished with value: 0.8347201827378039 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.8347201827378039.
+[I 2026-06-12 08:33:48,126] Trial 1 finished with value: 0.8689835209658998 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8689835209658998.
+[I 2026-06-12 08:34:19,980] Trial 2 finished with value: 0.8234622287485723 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8689835209658998.
+[I 2026-06-12 08:35:58,398] Trial 3 finished with value: 0.8773046173927231 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:37:27,785] Trial 4 finished with value: 0.8624571708272148 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:45:50,899] Trial 5 finished with value: 0.3662914015336923 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:47:12,650] Trial 6 finished with value: 0.8387991515744819 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:47:56,776] Trial 7 finished with value: 0.7870778267254038 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:48:51,682] Trial 8 finished with value: 0.827051721324849 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8773046173927231.
+[I 2026-06-12 08:49:49,950] Trial 9 finished with value: 0.8211780062000327 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.8773046173927231.
+Best trial: 3. Best value: 0.877305: 100%|█████████████████████████████████████████████████████████████████| 10/10 [20:07<00:00, 120.70s/it]
+
+Best trial val_acc: 0.8773
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0392 | val_loss: 0.9219 | val_acc: 0.5608
+Epoch 2/50 - train_loss: 0.8242 | val_loss: 0.6887 | val_acc: 0.6883
+Epoch 3/50 - train_loss: 0.6391 | val_loss: 0.6034 | val_acc: 0.7284
+Epoch 4/50 - train_loss: 0.5735 | val_loss: 0.5466 | val_acc: 0.7614
+Epoch 5/50 - train_loss: 0.5235 | val_loss: 0.4819 | val_acc: 0.7900
+Epoch 6/50 - train_loss: 0.4879 | val_loss: 0.5265 | val_acc: 0.7800
+Epoch 7/50 - train_loss: 0.4736 | val_loss: 0.4727 | val_acc: 0.8023
+Epoch 8/50 - train_loss: 0.4415 | val_loss: 0.4498 | val_acc: 0.8008
+Epoch 9/50 - train_loss: 0.4303 | val_loss: 0.4941 | val_acc: 0.7958
+Epoch 10/50 - train_loss: 0.4186 | val_loss: 0.4112 | val_acc: 0.8296
+Epoch 11/50 - train_loss: 0.4097 | val_loss: 0.3964 | val_acc: 0.8353
+Epoch 12/50 - train_loss: 0.3952 | val_loss: 0.5252 | val_acc: 0.7624
+Epoch 13/50 - train_loss: 0.3916 | val_loss: 0.3889 | val_acc: 0.8361
+Epoch 14/50 - train_loss: 0.3756 | val_loss: 0.4104 | val_acc: 0.8290
+Epoch 15/50 - train_loss: 0.3676 | val_loss: 0.3565 | val_acc: 0.8534
+Epoch 16/50 - train_loss: 0.3650 | val_loss: 0.3861 | val_acc: 0.8392
+Epoch 17/50 - train_loss: 0.3543 | val_loss: 0.3643 | val_acc: 0.8520
+Epoch 18/50 - train_loss: 0.3465 | val_loss: 0.3370 | val_acc: 0.8599
+Epoch 19/50 - train_loss: 0.3449 | val_loss: 0.3402 | val_acc: 0.8574
+Epoch 20/50 - train_loss: 0.3396 | val_loss: 0.3418 | val_acc: 0.8564
+Epoch 21/50 - train_loss: 0.3303 | val_loss: 0.3405 | val_acc: 0.8578
+Epoch 22/50 - train_loss: 0.3255 | val_loss: 0.3748 | val_acc: 0.8399
+Epoch 23/50 - train_loss: 0.3260 | val_loss: 0.3321 | val_acc: 0.8628
+Epoch 24/50 - train_loss: 0.3201 | val_loss: 0.3129 | val_acc: 0.8729
+Epoch 25/50 - train_loss: 0.3175 | val_loss: 0.3252 | val_acc: 0.8676
+Epoch 26/50 - train_loss: 0.3092 | val_loss: 0.3377 | val_acc: 0.8541
+Epoch 27/50 - train_loss: 0.3078 | val_loss: 0.3136 | val_acc: 0.8735
+Epoch 28/50 - train_loss: 0.3072 | val_loss: 0.3254 | val_acc: 0.8631
+Epoch 29/50 - train_loss: 0.3125 | val_loss: 0.3836 | val_acc: 0.8374
+Epoch 30/50 - train_loss: 0.2992 | val_loss: 0.3166 | val_acc: 0.8670
+Epoch 31/50 - train_loss: 0.2979 | val_loss: 0.3198 | val_acc: 0.8658
+Epoch 32/50 - train_loss: 0.2922 | val_loss: 0.3273 | val_acc: 0.8653
+Epoch 33/50 - train_loss: 0.2974 | val_loss: 0.3162 | val_acc: 0.8656
+Epoch 34/50 - train_loss: 0.2868 | val_loss: 0.3095 | val_acc: 0.8674
+Epoch 35/50 - train_loss: 0.2866 | val_loss: 0.2973 | val_acc: 0.8727
+Epoch 36/50 - train_loss: 0.2911 | val_loss: 0.3215 | val_acc: 0.8630
+Epoch 37/50 - train_loss: 0.2868 | val_loss: 0.3131 | val_acc: 0.8733
+Epoch 38/50 - train_loss: 0.2800 | val_loss: 0.2961 | val_acc: 0.8806
+Epoch 39/50 - train_loss: 0.2780 | val_loss: 0.2880 | val_acc: 0.8789
+Epoch 40/50 - train_loss: 0.2828 | val_loss: 0.2984 | val_acc: 0.8762
+Epoch 41/50 - train_loss: 0.2755 | val_loss: 0.3064 | val_acc: 0.8735
+Epoch 42/50 - train_loss: 0.2754 | val_loss: 0.2922 | val_acc: 0.8774
+Epoch 43/50 - train_loss: 0.2652 | val_loss: 0.3264 | val_acc: 0.8616
+Epoch 44/50 - train_loss: 0.2685 | val_loss: 0.2767 | val_acc: 0.8856
+Epoch 45/50 - train_loss: 0.2671 | val_loss: 0.2859 | val_acc: 0.8823
+Epoch 46/50 - train_loss: 0.2769 | val_loss: 0.2939 | val_acc: 0.8781
+Epoch 47/50 - train_loss: 0.2610 | val_loss: 0.2829 | val_acc: 0.8816
+Epoch 48/50 - train_loss: 0.2584 | val_loss: 0.2826 | val_acc: 0.8839
+Epoch 49/50 - train_loss: 0.2574 | val_loss: 0.2740 | val_acc: 0.8810
+Epoch 50/50 - train_loss: 0.2638 | val_loss: 0.2840 | val_acc: 0.8793
+              precision    recall  f1-score   support
+
+     Neutral       0.86      0.82      0.84      1591
+       Dorsi       0.87      0.93      0.90      1849
+     Plantar       0.91      0.88      0.89      1770
+
+    accuracy                           0.88      5210
+   macro avg       0.88      0.88      0.88      5210
+weighted avg       0.88      0.88      0.88      5210
+
+
+==================================================
+Testing on RAT 7
+==================================================
+Train: (28219, 16, 56) | Val: (6047, 16, 56) | Held-out: (6047, 16, 56) | Test rat: (7217, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 08:51:50,052] A new study created in memory with name: no-name-b7d6ade3-f136-4603-8829-0e42933830b5
+[I 2026-06-12 08:53:11,087] Trial 0 finished with value: 0.7929551843889532 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.7929551843889532.
+[I 2026-06-12 08:56:10,448] Trial 1 finished with value: 0.8475276996857946 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8475276996857946.
+[I 2026-06-12 08:56:42,387] Trial 2 finished with value: 0.8146188192492145 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8475276996857946.
+[I 2026-06-12 08:58:48,359] Trial 3 finished with value: 0.8556308913510832 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:00:16,042] Trial 4 finished with value: 0.8414089631222094 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:04:28,445] Trial 5 finished with value: 0.6968744832148173 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:05:47,538] Trial 6 finished with value: 0.8161071605754919 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:06:30,902] Trial 7 finished with value: 0.7797254837109311 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:07:24,111] Trial 8 finished with value: 0.8058541425500249 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8556308913510832.
+[I 2026-06-12 09:08:15,316] Trial 9 finished with value: 0.7916322143211509 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.8556308913510832.
+Best trial: 3. Best value: 0.855631: 100%|██████████████████████████████████████████████████████████████████| 10/10 [16:25<00:00, 98.53s/it]
+
+Best trial val_acc: 0.8556
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0186 | val_loss: 0.9314 | val_acc: 0.5031
+Epoch 2/50 - train_loss: 0.8682 | val_loss: 0.8687 | val_acc: 0.5331
+Epoch 3/50 - train_loss: 0.7466 | val_loss: 0.7058 | val_acc: 0.6469
+Epoch 4/50 - train_loss: 0.6715 | val_loss: 0.6778 | val_acc: 0.6813
+Epoch 5/50 - train_loss: 0.6288 | val_loss: 0.6201 | val_acc: 0.7091
+Epoch 6/50 - train_loss: 0.5873 | val_loss: 0.6349 | val_acc: 0.6996
+Epoch 7/50 - train_loss: 0.5693 | val_loss: 0.5367 | val_acc: 0.7722
+Epoch 8/50 - train_loss: 0.5418 | val_loss: 0.5227 | val_acc: 0.7712
+Epoch 9/50 - train_loss: 0.5215 | val_loss: 0.5775 | val_acc: 0.7344
+Epoch 10/50 - train_loss: 0.5101 | val_loss: 0.5123 | val_acc: 0.7619
+Epoch 11/50 - train_loss: 0.4850 | val_loss: 0.4841 | val_acc: 0.7809
+Epoch 12/50 - train_loss: 0.4717 | val_loss: 0.4762 | val_acc: 0.7967
+Epoch 13/50 - train_loss: 0.4577 | val_loss: 0.4416 | val_acc: 0.8097
+Epoch 14/50 - train_loss: 0.4501 | val_loss: 0.4415 | val_acc: 0.8010
+Epoch 15/50 - train_loss: 0.4467 | val_loss: 0.4144 | val_acc: 0.8165
+Epoch 16/50 - train_loss: 0.4284 | val_loss: 0.4411 | val_acc: 0.8053
+Epoch 17/50 - train_loss: 0.4128 | val_loss: 0.4360 | val_acc: 0.8047
+Epoch 18/50 - train_loss: 0.4124 | val_loss: 0.4221 | val_acc: 0.8136
+Epoch 19/50 - train_loss: 0.4026 | val_loss: 0.4126 | val_acc: 0.8165
+Epoch 20/50 - train_loss: 0.3953 | val_loss: 0.4098 | val_acc: 0.8233
+Epoch 21/50 - train_loss: 0.3857 | val_loss: 0.4010 | val_acc: 0.8247
+Epoch 22/50 - train_loss: 0.3851 | val_loss: 0.3794 | val_acc: 0.8354
+Epoch 23/50 - train_loss: 0.3814 | val_loss: 0.3701 | val_acc: 0.8403
+Epoch 24/50 - train_loss: 0.3691 | val_loss: 0.4235 | val_acc: 0.8204
+Epoch 25/50 - train_loss: 0.3711 | val_loss: 0.3662 | val_acc: 0.8492
+Epoch 26/50 - train_loss: 0.3612 | val_loss: 0.3430 | val_acc: 0.8553
+Epoch 27/50 - train_loss: 0.3596 | val_loss: 0.4124 | val_acc: 0.8241
+Epoch 28/50 - train_loss: 0.3598 | val_loss: 0.3574 | val_acc: 0.8535
+Epoch 29/50 - train_loss: 0.3494 | val_loss: 0.3557 | val_acc: 0.8516
+Epoch 30/50 - train_loss: 0.3492 | val_loss: 0.3304 | val_acc: 0.8553
+Epoch 31/50 - train_loss: 0.3391 | val_loss: 0.3561 | val_acc: 0.8494
+Epoch 32/50 - train_loss: 0.3359 | val_loss: 0.3452 | val_acc: 0.8500
+Epoch 33/50 - train_loss: 0.3353 | val_loss: 0.4204 | val_acc: 0.8270
+Epoch 34/50 - train_loss: 0.3356 | val_loss: 0.4057 | val_acc: 0.8233
+Epoch 35/50 - train_loss: 0.3299 | val_loss: 0.3134 | val_acc: 0.8673
+Epoch 36/50 - train_loss: 0.3215 | val_loss: 0.3533 | val_acc: 0.8492
+Epoch 37/50 - train_loss: 0.3213 | val_loss: 0.3569 | val_acc: 0.8529
+Epoch 38/50 - train_loss: 0.3194 | val_loss: 0.3364 | val_acc: 0.8549
+Epoch 39/50 - train_loss: 0.3198 | val_loss: 0.3393 | val_acc: 0.8586
+Epoch 40/50 - train_loss: 0.3216 | val_loss: 0.3390 | val_acc: 0.8574
+Epoch 41/50 - train_loss: 0.3146 | val_loss: 0.3169 | val_acc: 0.8689
+Epoch 42/50 - train_loss: 0.3132 | val_loss: 0.3445 | val_acc: 0.8601
+Epoch 43/50 - train_loss: 0.3079 | val_loss: 0.3145 | val_acc: 0.8689
+Epoch 44/50 - train_loss: 0.3009 | val_loss: 0.3203 | val_acc: 0.8648
+Epoch 45/50 - train_loss: 0.3150 | val_loss: 0.3113 | val_acc: 0.8704
+Epoch 46/50 - train_loss: 0.2966 | val_loss: 0.2932 | val_acc: 0.8753
+Epoch 47/50 - train_loss: 0.2978 | val_loss: 0.3309 | val_acc: 0.8613
+Epoch 48/50 - train_loss: 0.2979 | val_loss: 0.3170 | val_acc: 0.8663
+Epoch 49/50 - train_loss: 0.2957 | val_loss: 0.3026 | val_acc: 0.8710
+Epoch 50/50 - train_loss: 0.2905 | val_loss: 0.3657 | val_acc: 0.8527
+              precision    recall  f1-score   support
+
+     Neutral       0.81      0.79      0.80      1535
+       Dorsi       0.95      0.83      0.88      1922
+     Plantar       0.80      0.94      0.86      1683
+
+    accuracy                           0.85      5140
+   macro avg       0.85      0.85      0.85      5140
+weighted avg       0.86      0.85      0.85      5140
+
+
+==================================================
+Testing on RAT 8
+==================================================
+Train: (28688, 16, 56) | Val: (6148, 16, 56) | Held-out: (6148, 16, 56) | Test rat: (6546, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 09:10:04,920] A new study created in memory with name: no-name-5f3b30a1-3cf5-48c2-814f-a80af3a7f420
+[I 2026-06-12 09:11:27,258] Trial 0 finished with value: 0.7685426154847105 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.7685426154847105.
+[I 2026-06-12 09:14:45,327] Trial 1 finished with value: 0.8305139882888745 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8305139882888745.
+[I 2026-06-12 09:15:17,345] Trial 2 finished with value: 0.8066037735849056 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8305139882888745.
+[I 2026-06-12 09:16:51,841] Trial 3 finished with value: 0.8327911515940143 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8327911515940143.
+[I 2026-06-12 09:18:18,667] Trial 4 finished with value: 0.8540988939492518 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 4 with value: 0.8540988939492518.
+[I 2026-06-12 09:22:41,760] Trial 5 finished with value: 0.6785946649316851 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 4 with value: 0.8540988939492518.
+[I 2026-06-12 09:24:01,956] Trial 6 finished with value: 0.83295380611581 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 4 with value: 0.8540988939492518.
+[I 2026-06-12 09:24:45,706] Trial 7 finished with value: 0.7410540013012362 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 4 with value: 0.8540988939492518.
+[I 2026-06-12 09:25:40,091] Trial 8 finished with value: 0.7486987638256344 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 4 with value: 0.8540988939492518.
+[I 2026-06-12 09:26:32,102] Trial 9 finished with value: 0.7574821080026025 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 4 with value: 0.8540988939492518.
+Best trial: 4. Best value: 0.854099: 100%|██████████████████████████████████████████████████████████████████| 10/10 [16:27<00:00, 98.72s/it]
+
+Best trial val_acc: 0.8541
+Best params: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}
+Epoch 1/50 - train_loss: 1.0509 | val_loss: 0.9650 | val_acc: 0.4707
+Epoch 2/50 - train_loss: 0.8963 | val_loss: 0.8447 | val_acc: 0.5739
+Epoch 3/50 - train_loss: 0.8141 | val_loss: 0.8166 | val_acc: 0.5775
+Epoch 4/50 - train_loss: 0.7537 | val_loss: 0.7196 | val_acc: 0.6772
+Epoch 5/50 - train_loss: 0.7061 | val_loss: 0.6929 | val_acc: 0.6737
+Epoch 6/50 - train_loss: 0.6695 | val_loss: 0.6642 | val_acc: 0.6806
+Epoch 7/50 - train_loss: 0.6386 | val_loss: 0.6660 | val_acc: 0.6722
+Epoch 8/50 - train_loss: 0.6174 | val_loss: 0.6293 | val_acc: 0.6996
+Epoch 9/50 - train_loss: 0.5916 | val_loss: 0.5662 | val_acc: 0.7315
+Epoch 10/50 - train_loss: 0.5753 | val_loss: 0.5708 | val_acc: 0.7348
+Epoch 11/50 - train_loss: 0.5637 | val_loss: 0.5590 | val_acc: 0.7354
+Epoch 12/50 - train_loss: 0.5465 | val_loss: 0.5727 | val_acc: 0.7256
+Epoch 13/50 - train_loss: 0.5372 | val_loss: 0.5410 | val_acc: 0.7419
+Epoch 14/50 - train_loss: 0.5319 | val_loss: 0.5373 | val_acc: 0.7574
+Epoch 15/50 - train_loss: 0.5143 | val_loss: 0.5365 | val_acc: 0.7556
+Epoch 16/50 - train_loss: 0.5078 | val_loss: 0.5053 | val_acc: 0.7690
+Epoch 17/50 - train_loss: 0.4985 | val_loss: 0.5077 | val_acc: 0.7677
+Epoch 18/50 - train_loss: 0.4910 | val_loss: 0.4885 | val_acc: 0.7750
+Epoch 19/50 - train_loss: 0.4849 | val_loss: 0.4932 | val_acc: 0.7889
+Epoch 20/50 - train_loss: 0.4782 | val_loss: 0.4985 | val_acc: 0.7824
+Epoch 21/50 - train_loss: 0.4674 | val_loss: 0.4581 | val_acc: 0.8062
+Epoch 22/50 - train_loss: 0.4606 | val_loss: 0.4457 | val_acc: 0.8046
+Epoch 23/50 - train_loss: 0.4525 | val_loss: 0.4388 | val_acc: 0.8117
+Epoch 24/50 - train_loss: 0.4458 | val_loss: 0.4454 | val_acc: 0.8081
+Epoch 25/50 - train_loss: 0.4356 | val_loss: 0.4714 | val_acc: 0.7884
+Epoch 26/50 - train_loss: 0.4353 | val_loss: 0.4343 | val_acc: 0.8157
+Epoch 27/50 - train_loss: 0.4268 | val_loss: 0.4072 | val_acc: 0.8266
+Epoch 28/50 - train_loss: 0.4184 | val_loss: 0.4642 | val_acc: 0.7998
+Epoch 29/50 - train_loss: 0.4185 | val_loss: 0.4664 | val_acc: 0.7895
+Epoch 30/50 - train_loss: 0.4100 | val_loss: 0.4462 | val_acc: 0.8090
+Epoch 31/50 - train_loss: 0.4040 | val_loss: 0.4065 | val_acc: 0.8324
+Epoch 32/50 - train_loss: 0.4060 | val_loss: 0.3991 | val_acc: 0.8270
+Epoch 33/50 - train_loss: 0.3967 | val_loss: 0.3986 | val_acc: 0.8307
+Epoch 34/50 - train_loss: 0.3908 | val_loss: 0.4295 | val_acc: 0.8215
+Epoch 35/50 - train_loss: 0.3909 | val_loss: 0.4310 | val_acc: 0.8148
+Epoch 36/50 - train_loss: 0.3875 | val_loss: 0.4023 | val_acc: 0.8245
+Epoch 37/50 - train_loss: 0.3801 | val_loss: 0.3917 | val_acc: 0.8320
+Epoch 38/50 - train_loss: 0.3789 | val_loss: 0.3971 | val_acc: 0.8251
+Epoch 39/50 - train_loss: 0.3770 | val_loss: 0.3695 | val_acc: 0.8402
+Epoch 40/50 - train_loss: 0.3715 | val_loss: 0.4397 | val_acc: 0.8159
+Epoch 41/50 - train_loss: 0.3679 | val_loss: 0.4291 | val_acc: 0.8196
+Epoch 42/50 - train_loss: 0.3739 | val_loss: 0.3696 | val_acc: 0.8454
+Epoch 43/50 - train_loss: 0.3615 | val_loss: 0.3765 | val_acc: 0.8383
+Epoch 44/50 - train_loss: 0.3618 | val_loss: 0.4043 | val_acc: 0.8320
+Epoch 45/50 - train_loss: 0.3565 | val_loss: 0.3828 | val_acc: 0.8351
+Epoch 46/50 - train_loss: 0.3582 | val_loss: 0.3962 | val_acc: 0.8330
+Epoch 47/50 - train_loss: 0.3545 | val_loss: 0.3765 | val_acc: 0.8368
+Epoch 48/50 - train_loss: 0.3487 | val_loss: 0.3603 | val_acc: 0.8513
+Epoch 49/50 - train_loss: 0.3481 | val_loss: 0.3611 | val_acc: 0.8458
+Epoch 50/50 - train_loss: 0.3440 | val_loss: 0.3936 | val_acc: 0.8335
+              precision    recall  f1-score   support
+
+     Neutral       0.86      0.67      0.75      1583
+       Dorsi       0.80      0.94      0.86      1910
+     Plantar       0.86      0.87      0.87      1733
+
+    accuracy                           0.83      5226
+   macro avg       0.84      0.83      0.83      5226
+weighted avg       0.84      0.83      0.83      5226
+
+
+==================================================
+Testing on RAT 9
+==================================================
+Train: (28676, 16, 56) | Val: (6145, 16, 56) | Held-out: (6146, 16, 56) | Test rat: (6563, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 09:28:02,553] A new study created in memory with name: no-name-d0ed8f14-69ab-4ea5-9f57-283c688d687e
+[I 2026-06-12 09:29:25,183] Trial 0 finished with value: 0.8484947111472743 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.8484947111472743.
+[I 2026-06-12 09:32:47,119] Trial 1 finished with value: 0.8045565500406835 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 0 with value: 0.8484947111472743.
+[I 2026-06-12 09:33:19,647] Trial 2 finished with value: 0.8486574450772986 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 2 with value: 0.8486574450772986.
+[I 2026-06-12 09:35:57,267] Trial 3 finished with value: 0.8867371847030106 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:37:24,248] Trial 4 finished with value: 0.8660699755899105 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:43:51,863] Trial 5 finished with value: 0.6175752644426363 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:45:13,272] Trial 6 finished with value: 0.8489829129373474 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:45:58,185] Trial 7 finished with value: 0.8024410089503662 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:46:52,466] Trial 8 finished with value: 0.8307567127746135 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8867371847030106.
+[I 2026-06-12 09:47:42,377] Trial 9 finished with value: 0.8252237591537835 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.8867371847030106.
+Best trial: 3. Best value: 0.886737: 100%|█████████████████████████████████████████████████████████████████| 10/10 [19:39<00:00, 117.98s/it]
+
+Best trial val_acc: 0.8867
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0478 | val_loss: 0.9583 | val_acc: 0.4937
+Epoch 2/50 - train_loss: 0.8250 | val_loss: 0.7803 | val_acc: 0.6432
+Epoch 3/50 - train_loss: 0.6480 | val_loss: 0.5867 | val_acc: 0.7542
+Epoch 4/50 - train_loss: 0.5686 | val_loss: 0.5198 | val_acc: 0.7720
+Epoch 5/50 - train_loss: 0.5201 | val_loss: 0.5452 | val_acc: 0.7534
+Epoch 6/50 - train_loss: 0.4813 | val_loss: 0.4661 | val_acc: 0.7940
+Epoch 7/50 - train_loss: 0.4633 | val_loss: 0.4324 | val_acc: 0.8292
+Epoch 8/50 - train_loss: 0.4348 | val_loss: 0.4163 | val_acc: 0.8285
+Epoch 9/50 - train_loss: 0.4178 | val_loss: 0.3932 | val_acc: 0.8289
+Epoch 10/50 - train_loss: 0.3977 | val_loss: 0.3716 | val_acc: 0.8409
+Epoch 11/50 - train_loss: 0.3873 | val_loss: 0.3695 | val_acc: 0.8564
+Epoch 12/50 - train_loss: 0.3732 | val_loss: 0.3946 | val_acc: 0.8258
+Epoch 13/50 - train_loss: 0.3630 | val_loss: 0.3415 | val_acc: 0.8647
+Epoch 14/50 - train_loss: 0.3701 | val_loss: 0.3447 | val_acc: 0.8673
+Epoch 15/50 - train_loss: 0.3474 | val_loss: 0.3842 | val_acc: 0.8381
+Epoch 16/50 - train_loss: 0.3386 | val_loss: 0.3264 | val_acc: 0.8706
+Epoch 17/50 - train_loss: 0.3338 | val_loss: 0.3104 | val_acc: 0.8761
+Epoch 18/50 - train_loss: 0.3384 | val_loss: 0.3158 | val_acc: 0.8739
+Epoch 19/50 - train_loss: 0.3252 | val_loss: 0.3245 | val_acc: 0.8681
+Epoch 20/50 - train_loss: 0.3160 | val_loss: 0.2999 | val_acc: 0.8767
+Epoch 21/50 - train_loss: 0.3159 | val_loss: 0.3124 | val_acc: 0.8769
+Epoch 22/50 - train_loss: 0.3188 | val_loss: 0.2928 | val_acc: 0.8850
+Epoch 23/50 - train_loss: 0.3041 | val_loss: 0.3293 | val_acc: 0.8658
+Epoch 24/50 - train_loss: 0.3038 | val_loss: 0.2896 | val_acc: 0.8846
+Epoch 25/50 - train_loss: 0.3013 | val_loss: 0.2779 | val_acc: 0.8894
+Epoch 26/50 - train_loss: 0.2942 | val_loss: 0.2909 | val_acc: 0.8796
+Epoch 27/50 - train_loss: 0.2940 | val_loss: 0.2904 | val_acc: 0.8823
+Epoch 28/50 - train_loss: 0.2881 | val_loss: 0.2736 | val_acc: 0.8945
+Epoch 29/50 - train_loss: 0.2913 | val_loss: 0.2879 | val_acc: 0.8857
+Epoch 30/50 - train_loss: 0.2855 | val_loss: 0.2955 | val_acc: 0.8746
+Epoch 31/50 - train_loss: 0.2809 | val_loss: 0.3356 | val_acc: 0.8647
+Epoch 32/50 - train_loss: 0.2829 | val_loss: 0.2726 | val_acc: 0.8867
+Epoch 33/50 - train_loss: 0.2777 | val_loss: 0.2648 | val_acc: 0.8957
+Epoch 34/50 - train_loss: 0.2763 | val_loss: 0.2620 | val_acc: 0.8951
+Epoch 35/50 - train_loss: 0.2771 | val_loss: 0.2783 | val_acc: 0.8838
+Epoch 36/50 - train_loss: 0.2666 | val_loss: 0.2954 | val_acc: 0.8769
+Epoch 37/50 - train_loss: 0.2657 | val_loss: 0.2959 | val_acc: 0.8779
+Epoch 38/50 - train_loss: 0.2626 | val_loss: 0.2776 | val_acc: 0.8853
+Epoch 39/50 - train_loss: 0.2657 | val_loss: 0.2467 | val_acc: 0.8995
+Epoch 40/50 - train_loss: 0.2626 | val_loss: 0.2595 | val_acc: 0.8934
+Epoch 41/50 - train_loss: 0.2584 | val_loss: 0.2575 | val_acc: 0.8953
+Epoch 42/50 - train_loss: 0.2578 | val_loss: 0.2789 | val_acc: 0.8863
+Epoch 43/50 - train_loss: 0.2559 | val_loss: 0.2943 | val_acc: 0.8821
+Epoch 44/50 - train_loss: 0.2505 | val_loss: 0.3193 | val_acc: 0.8698
+Epoch 45/50 - train_loss: 0.2478 | val_loss: 0.3019 | val_acc: 0.8781
+Epoch 46/50 - train_loss: 0.2530 | val_loss: 0.2367 | val_acc: 0.9039
+Epoch 47/50 - train_loss: 0.2482 | val_loss: 0.2486 | val_acc: 0.8991
+Epoch 48/50 - train_loss: 0.2479 | val_loss: 0.2380 | val_acc: 0.9058
+Epoch 49/50 - train_loss: 0.2411 | val_loss: 0.2586 | val_acc: 0.8941
+Epoch 50/50 - train_loss: 0.2447 | val_loss: 0.2548 | val_acc: 0.8932
+              precision    recall  f1-score   support
+
+     Neutral       0.80      0.90      0.85      1586
+       Dorsi       0.93      0.91      0.92      1945
+     Plantar       0.95      0.87      0.91      1693
+
+    accuracy                           0.89      5224
+   macro avg       0.90      0.89      0.89      5224
+weighted avg       0.90      0.89      0.89      5224
+
+
+==================================================
+Testing on RAT 10
+==================================================
+Train: (28706, 16, 56) | Val: (6152, 16, 56) | Held-out: (6152, 16, 56) | Test rat: (6520, 16, 56)
+Running Optuna hyperparameter search...
+[I 2026-06-12 09:49:55,799] A new study created in memory with name: no-name-532810d3-041d-4fbd-ad5d-593354868607
+[I 2026-06-12 09:51:24,560] Trial 0 finished with value: 0.8208712613784135 and parameters: {'seq_len': 24, 'batch_size': 32, 'lr': 0.0002051338263087451, 'weight_decay': 4.207053950287936e-06, 'filters1': 16, 'filters2': 32, 'fc_units': 64, 'kernel_size': 3}. Best is trial 0 with value: 0.8208712613784135.
+[I 2026-06-12 09:53:42,975] Trial 1 finished with value: 0.8556566970091027 and parameters: {'seq_len': 40, 'batch_size': 128, 'lr': 0.000816845589476017, 'weight_decay': 0.0013826232179369874, 'filters1': 32, 'filters2': 128, 'fc_units': 16, 'kernel_size': 5}. Best is trial 1 with value: 0.8556566970091027.
+[I 2026-06-12 09:54:15,349] Trial 2 finished with value: 0.83777633289987 and parameters: {'seq_len': 8, 'batch_size': 128, 'lr': 0.00032927591344236165, 'weight_decay': 0.0004467752817973908, 'filters1': 32, 'filters2': 16, 'fc_units': 32, 'kernel_size': 7}. Best is trial 1 with value: 0.8556566970091027.
+[I 2026-06-12 09:55:32,765] Trial 3 finished with value: 0.8901170351105332 and parameters: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 09:56:59,766] Trial 4 finished with value: 0.8743498049414824 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 10:01:59,864] Trial 5 finished with value: 0.6851430429128739 and parameters: {'seq_len': 8, 'batch_size': 32, 'lr': 0.006533305220227739, 'weight_decay': 9.935023909063694e-06, 'filters1': 16, 'filters2': 64, 'fc_units': 32, 'kernel_size': 5}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 10:03:20,849] Trial 6 finished with value: 0.8392392717815345 and parameters: {'seq_len': 56, 'batch_size': 32, 'lr': 0.000285673742984719, 'weight_decay': 5.110120656497168e-05, 'filters1': 16, 'filters2': 16, 'fc_units': 16, 'kernel_size': 7}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 10:04:06,187] Trial 7 finished with value: 0.802665799739922 and parameters: {'seq_len': 64, 'batch_size': 64, 'lr': 0.00037126241790405324, 'weight_decay': 1.4045842344024705e-06, 'filters1': 8, 'filters2': 16, 'fc_units': 16, 'kernel_size': 3}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 10:05:00,064] Trial 8 finished with value: 0.8304616384915474 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0001515582353959763, 'weight_decay': 0.0021938654178115065, 'filters1': 64, 'filters2': 16, 'fc_units': 64, 'kernel_size': 5}. Best is trial 3 with value: 0.8901170351105332.
+[I 2026-06-12 10:05:52,850] Trial 9 finished with value: 0.8125812743823146 and parameters: {'seq_len': 24, 'batch_size': 64, 'lr': 0.0003280071082578536, 'weight_decay': 0.00043645169468077945, 'filters1': 8, 'filters2': 64, 'fc_units': 64, 'kernel_size': 3}. Best is trial 3 with value: 0.8901170351105332.
+Best trial: 3. Best value: 0.890117: 100%|██████████████████████████████████████████████████████████████████| 10/10 [15:57<00:00, 95.71s/it]
+
+Best trial val_acc: 0.8901
+Best params: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+Epoch 1/50 - train_loss: 1.0524 | val_loss: 0.9482 | val_acc: 0.5504
+Epoch 2/50 - train_loss: 0.8552 | val_loss: 0.7597 | val_acc: 0.6558
+Epoch 3/50 - train_loss: 0.7073 | val_loss: 0.6485 | val_acc: 0.6885
+Epoch 4/50 - train_loss: 0.6190 | val_loss: 0.5937 | val_acc: 0.7145
+Epoch 5/50 - train_loss: 0.5686 | val_loss: 0.5280 | val_acc: 0.7569
+Epoch 6/50 - train_loss: 0.5383 | val_loss: 0.5330 | val_acc: 0.7485
+Epoch 7/50 - train_loss: 0.5122 | val_loss: 0.4812 | val_acc: 0.7915
+Epoch 8/50 - train_loss: 0.4901 | val_loss: 0.4969 | val_acc: 0.7862
+Epoch 9/50 - train_loss: 0.4749 | val_loss: 0.4607 | val_acc: 0.7938
+Epoch 10/50 - train_loss: 0.4516 | val_loss: 0.4610 | val_acc: 0.7738
+Epoch 11/50 - train_loss: 0.4360 | val_loss: 0.4435 | val_acc: 0.8097
+Epoch 12/50 - train_loss: 0.4317 | val_loss: 0.4396 | val_acc: 0.7875
+Epoch 13/50 - train_loss: 0.4068 | val_loss: 0.4249 | val_acc: 0.8195
+Epoch 14/50 - train_loss: 0.3965 | val_loss: 0.3921 | val_acc: 0.8380
+Epoch 15/50 - train_loss: 0.3850 | val_loss: 0.3987 | val_acc: 0.8206
+Epoch 16/50 - train_loss: 0.3748 | val_loss: 0.3625 | val_acc: 0.8503
+Epoch 17/50 - train_loss: 0.3772 | val_loss: 0.3835 | val_acc: 0.8292
+Epoch 18/50 - train_loss: 0.3574 | val_loss: 0.3655 | val_acc: 0.8384
+Epoch 19/50 - train_loss: 0.3546 | val_loss: 0.3608 | val_acc: 0.8472
+Epoch 20/50 - train_loss: 0.3456 | val_loss: 0.3570 | val_acc: 0.8547
+Epoch 21/50 - train_loss: 0.3385 | val_loss: 0.3630 | val_acc: 0.8422
+Epoch 22/50 - train_loss: 0.3336 | val_loss: 0.3433 | val_acc: 0.8541
+Epoch 23/50 - train_loss: 0.3281 | val_loss: 0.3225 | val_acc: 0.8621
+Epoch 24/50 - train_loss: 0.3291 | val_loss: 0.3092 | val_acc: 0.8698
+Epoch 25/50 - train_loss: 0.3223 | val_loss: 0.3597 | val_acc: 0.8462
+Epoch 26/50 - train_loss: 0.3193 | val_loss: 0.3104 | val_acc: 0.8679
+Epoch 27/50 - train_loss: 0.3173 | val_loss: 0.3294 | val_acc: 0.8610
+Epoch 28/50 - train_loss: 0.3068 | val_loss: 0.3028 | val_acc: 0.8701
+Epoch 29/50 - train_loss: 0.3015 | val_loss: 0.3033 | val_acc: 0.8684
+Epoch 30/50 - train_loss: 0.2981 | val_loss: 0.3028 | val_acc: 0.8726
+Epoch 31/50 - train_loss: 0.2963 | val_loss: 0.3105 | val_acc: 0.8703
+Epoch 32/50 - train_loss: 0.2938 | val_loss: 0.3253 | val_acc: 0.8629
+Epoch 33/50 - train_loss: 0.2943 | val_loss: 0.3211 | val_acc: 0.8659
+Epoch 34/50 - train_loss: 0.2920 | val_loss: 0.2791 | val_acc: 0.8809
+Epoch 35/50 - train_loss: 0.2855 | val_loss: 0.2910 | val_acc: 0.8724
+Epoch 36/50 - train_loss: 0.2833 | val_loss: 0.3012 | val_acc: 0.8698
+Epoch 37/50 - train_loss: 0.2935 | val_loss: 0.2803 | val_acc: 0.8784
+Epoch 38/50 - train_loss: 0.2845 | val_loss: 0.2908 | val_acc: 0.8757
+Epoch 39/50 - train_loss: 0.2730 | val_loss: 0.3949 | val_acc: 0.8434
+Epoch 40/50 - train_loss: 0.2812 | val_loss: 0.2782 | val_acc: 0.8795
+Epoch 41/50 - train_loss: 0.2766 | val_loss: 0.3286 | val_acc: 0.8558
+Epoch 42/50 - train_loss: 0.2762 | val_loss: 0.2781 | val_acc: 0.8828
+Epoch 43/50 - train_loss: 0.2713 | val_loss: 0.2871 | val_acc: 0.8770
+Epoch 44/50 - train_loss: 0.2709 | val_loss: 0.2691 | val_acc: 0.8849
+Epoch 45/50 - train_loss: 0.2635 | val_loss: 0.3004 | val_acc: 0.8665
+Epoch 46/50 - train_loss: 0.2652 | val_loss: 0.2861 | val_acc: 0.8759
+Epoch 47/50 - train_loss: 0.2620 | val_loss: 0.3013 | val_acc: 0.8715
+Epoch 48/50 - train_loss: 0.2619 | val_loss: 0.2743 | val_acc: 0.8851
+Epoch 49/50 - train_loss: 0.2619 | val_loss: 0.3761 | val_acc: 0.8346
+Epoch 50/50 - train_loss: 0.2560 | val_loss: 0.2922 | val_acc: 0.8768
+              precision    recall  f1-score   support
+
+     Neutral       0.80      0.86      0.83      1556
+       Dorsi       0.92      0.88      0.90      1910
+     Plantar       0.91      0.89      0.90      1763
+
+    accuracy                           0.88      5229
+   macro avg       0.88      0.88      0.88      5229
+weighted avg       0.88      0.88      0.88      5229
+
+
+
+Best params per rat:
+  RAT 4: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+  RAT 5: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+  RAT 6: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+  RAT 7: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+  RAT 8: {'seq_len': 56, 'batch_size': 32, 'lr': 0.0004187594718900631, 'weight_decay': 1.99863407785289e-05, 'filters1': 32, 'filters2': 64, 'fc_units': 16, 'kernel_size': 3}
+  RAT 9: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}
+  RAT 10: {'seq_len': 32, 'batch_size': 64, 'lr': 0.0003646439558980723, 'weight_decay': 0.00014817820606039095, 'filters1': 64, 'filters2': 128, 'fc_units': 64, 'kernel_size': 5}

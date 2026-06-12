@@ -64,8 +64,8 @@ def split_data(X, y, train=0.70, val=0.15, seed=42):
 
     return (
         X[train_idx], y[train_idx],
-        X[val_idx],   y[val_idx],
-        X[test_idx],  y[test_idx],
+        X[val_idx], y[val_idx],
+        X[test_idx], y[test_idx],
     )
 
 
@@ -93,7 +93,7 @@ def train_model(X_train, y_train, X_val, y_val):
         shuffle=True
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     model = CNN1D(n_channels=n_channels).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     criterion = nn.CrossEntropyLoss()
@@ -164,7 +164,7 @@ def leave_one_rat_out(data_dir, rat_ids, seed=42):
 
 
 if __name__ == "__main__":
-    data_dir = "./dataset_rats"
+    data_dir = "./dataset_rats_test"
     rat_ids = list(range(4, 11))
 
     results = leave_one_rat_out(data_dir, rat_ids)
