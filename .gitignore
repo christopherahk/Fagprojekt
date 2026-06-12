@@ -64,6 +64,12 @@ python_files/intanutil/*
 training_accuracy.csv
 trained_weights.h
 scaler.npz
+results_val.txt
+trained_weights.h.bak
+splits/*
+splits/val.npz
+splits/train.npz
+splits/test.npz
 
 DT_test_baseline.py
 
@@ -76,3 +82,5 @@ data2/
 softmax_csv_analysis/
 softmax_test_120.csv
 build/
+
+splits/*.npz

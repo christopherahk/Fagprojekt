@@ -11,7 +11,7 @@ except ImportError:
     print("Could not import streamer.py -- make sure this file sits next to it.")
     sys.exit(1)
 
-
+#LEAVE ONE GROUP OUT CROSS VALIDATION
 # feature extraction (mirrors FeatureExtractor.h)
 def extract_features(X: np.ndarray) -> np.ndarray:
     """
@@ -133,13 +133,13 @@ if __name__ == "__main__":
     # This is the gold standard: unlimited trees, full data, offline training.
     # If HAT on Arduino matches this it is performing optimally.
     rf_ceiling = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
+        n_estimators=500,
+        max_depth=3,
         random_state=42,
         n_jobs=-1,
     )
     ceiling_scores = logo_eval(
-        "RF ceiling  (100 trees, depth 10)  -- best offline achievable",
+        "RF ceiling  (500 trees, depth 3)  -- best offline achievable",
         rf_ceiling, X_feat, y, groups, RAT_IDS, CLASS_NAMES,
     )
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     # This shows what a forest of the same capacity achieves offline.
     rf_matched = RandomForestClassifier(
         n_estimators=3,
-        max_depth=4,
+        max_depth=12,
         random_state=42,
     )
     matched_scores = logo_eval(

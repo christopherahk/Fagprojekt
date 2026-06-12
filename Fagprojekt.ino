@@ -1,319 +1,218 @@
 #include "FeatureExtractor.h"
-#include "HoeffdingTree.h"
+#define MF_LAMBDA 6.0f
+#define MF_N_TREES 24
+#define MF_MAX_NODES 63
+#include "MondrianForest.h"
 #include <Arduino.h>
 
-// signal dimensions
 const int N_CHANNELS = 56;
 const int WINDOW = 32;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * WINDOW;
-const int N_FEATURES = N_CHANNELS * 6;
-
+const int N_FEATURES = N_CHANNELS * (N_RBI_BINS + WINDOW / 2 + 1);
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 256;
 
-// Class labels for serial output
 const char *CLASS_NAMES[N_CLASSES] = {"dorsi", "plantar", "none"};
 
-// Raw signal window
 static float values[N_FLOATS];
-
-// Feature vector
 static float features[N_FEATURES];
+static float proba[N_CLASSES];
 
-// Probability output
-static float proba[3][N_CLASSES];
-static float avgProba[N_CLASSES];
+// Validation counters -- reset each validation pass
+static int val_total = 0;
+static int val_correct = 0;
+static float val_loss = 0.0f;
 
-static uint32_t labeledSamples = 0;
-static uint32_t correctLabeledSamples = 0;
+MondrianForest mf;
 
-// model setup
-// delta = 0.05 : split when 95% statistically confident
-// tau   = 0.05 : also split if the top two features are within 0.05 of each
-// testing less conservative measures
-// other + epsilon has fallen below tau
-// Ensemble: 3 HAT instances (prototype small ensemble)
-HoeffdingAdaptiveTree hat0(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
-                           /*tau=*/0.1f);
-HoeffdingAdaptiveTree hat1(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
-                           /*tau=*/0.1f);
-HoeffdingAdaptiveTree hat2(N_FEATURES, N_CLASSES, /*delta=*/0.1f,
-                           /*tau=*/0.1f);
-
-// helpers to iterate
-HoeffdingAdaptiveTree *hats[3] = {&hat0, &hat1, &hat2};
-
-// Python side sends raw float bytes in CHUNK_SIZE chunks
-// void get_data() {
-//   int received = 0;
-//   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
-//   int chunk_count = 0;
-
-//   while (received < BYTES_NEEDED) {
-//     int to_read = min(CHUNK_SIZE, BYTES_NEEDED - received);
-//     unsigned long start = millis();
-
-//     while (Serial.available() < to_read) {
-//       if (millis() - start > 5000) {
-//         Serial.print("TIMEOUT at chunk ");
-//         Serial.println(chunk_count);
-//         return;
-//       }
-//     }
-
-//     for (int i = 0; i < to_read; i++)
-//       buf[received++] = Serial.read();
-
-//     chunk_count++;
-//     Serial.println("ACK");
-//   }
-
-void get_data() {
+// ── Read one window of raw signal data ───────────────────────────────────────
+// Returns true on success, false on timeout.
+bool readSignal() {
   int received = 0;
   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
 
   while (received < BYTES_NEEDED) {
     int to_read = min(CHUNK_SIZE, BYTES_NEEDED - received);
     unsigned long start = millis();
-
     while (Serial.available() < to_read) {
       if (millis() - start > 5000) {
-        Serial.print("TIMEOUT at chunk ");
-        Serial.println(received);
-        return;
+        Serial.println("TIMEOUT");
+        return false;
       }
     }
-
     for (int i = 0; i < to_read; i++)
       buf[received++] = Serial.read();
-
-    // Serial.println("ACK"); <-- FJERNET! Sparer oceaner af tid.
+    // No ACK -- streamer.py does not expect it and it clogs the buffer
   }
+  return true;
+}
 
-  // Read the mode byte after the payload:
-  // 'L' = labeled sample, 'U' = unlabeled inference-only sample.
-  unsigned long modeStart = millis();
+// ── Read mode byte then one-hot label ────────────────────────────────────────
+// Mode 'L' = labeled (train), 'U' = unlabeled (val/infer only).
+// Returns label index 0-2, or -1 for unlabeled/error.
+int readLabel() {
+  unsigned long start = millis();
   while (!Serial.available()) {
-    if (millis() - modeStart > 2000) {
-      processWindow(values, -1);
-      Serial.println("INFER");
-      return;
-    }
+    if (millis() - start > 2000)
+      return -1;
   }
-
   char mode = (char)Serial.read();
 
-  if (mode == 'U') {
-    processWindow(values, -1);
-    Serial.println("INFER");
-    return;
-  }
-
-  if (mode != 'L') {
-    processWindow(values, -1);
-    Serial.println("INVALID_MODE");
-    return;
-  }
-  Serial.print("DBG mode=");
-  Serial.println(mode);
-
+  // Read the 3-byte one-hot regardless of mode
   int label[N_CLASSES];
   for (int i = 0; i < N_CLASSES; i++) {
-    unsigned long start = millis();
+    unsigned long s = millis();
     while (!Serial.available()) {
-      if (millis() - start > 2000) {
-        processWindow(values, -1);
-        Serial.println("INVALID_LABEL");
-        return;
-      }
+      if (millis() - s > 2000)
+        return -1;
     }
     label[i] = Serial.read();
   }
 
-  int labelIdx = -1;
-  for (int i = 0; i < N_CLASSES; i++) {
-    if (label[i] == 1) {
-      labelIdx = i;
-      break;
-    }
-  }
+  if (mode == 'U')
+    return -1; // unlabeled -- infer only
 
-  if (labelIdx < 0) {
-    processWindow(values, -1);
-    Serial.println("INVALID_LABEL");
-    return;
-  }
-
-  processWindow(values, labelIdx);
-  Serial.println("TRAIN");
+  for (int i = 0; i < N_CLASSES; i++)
+    if (label[i] == 1)
+      return i;
+  return -1;
 }
 
-void processWindow(const float *data, int labelIdx) {
-  // feature extraction
-  Serial.print("DBG sample ");
-  Serial.println(labelIdx);
-  extractFeatures(data, N_CHANNELS, WINDOW, features);
+// ── Process one window: extract features, predict, optionally train
+// ───────────
+void processWindow(int labelIdx, bool doTrain, bool doValidate) {
+  extractFeatures(values, N_CHANNELS, WINDOW, features);
 
-  // prediction before training: per-tree
-  int preds[3];
-  for (int t = 0; t < 3; t++) {
-    hats[t]->predictProba(features, proba[t]);
-    preds[t] = hats[t]->predict(features);
+  mf.predictProba(features, proba);
+  int pred = mf.predict(features);
+
+  // Cross-entropy loss (used for val reporting and early stopping)
+  float loss = 0.0f;
+  if (labelIdx >= 0) {
+    float p = proba[labelIdx];
+    if (p < 1e-7f)
+      p = 1e-7f;
+    loss = -logf(p);
   }
 
-  // average probabilities
-  for (int c = 0; c < N_CLASSES; c++) {
-    avgProba[c] = 0.0f;
-    for (int t = 0; t < 3; t++)
-      avgProba[c] += proba[t][c];
-    avgProba[c] /= 3.0f;
+  if (doTrain && labelIdx >= 0)
+    mf.train(features, labelIdx);
+
+  if (doValidate && labelIdx >= 0) {
+    val_total++;
+    val_loss += loss;
+    if (pred == labelIdx)
+      val_correct++;
   }
 
-  // majority vote
-  int votes[N_CLASSES] = {0};
-  for (int t = 0; t < 3; t++)
-    votes[preds[t]]++;
-
-  int ensemblePred = 0;
-  for (int c = 1; c < N_CLASSES; c++)
-    if (votes[c] > votes[ensemblePred])
-      ensemblePred = c;
-
-  bool isLabeled = labelIdx >= 0 && labelIdx < N_CLASSES;
-  if (isLabeled) {
-    static uint8_t bagIdx = 0;
-
-    for (int t = 0; t < 3; t++) {
-
-      if (t != bagIdx % 3) {
-        hats[t]->train(features, labelIdx);
-      }
+  if (!doValidate) {
+    // Training mode -- send full output for Python logging
+    Serial.print("Probs: ");
+    for (int i = 0; i < N_CLASSES; i++) {
+      Serial.print(proba[i], 4);
+      if (i < N_CLASSES - 1)
+        Serial.print(", ");
     }
-    bagIdx++;
-
-    labeledSamples++;
-    if (ensemblePred == labelIdx)
-      correctLabeledSamples++;
-  }
-
-  //
-  Serial.print("Probs: ");
-  for (int i = 0; i < N_CLASSES; i++) {
-    Serial.print(avgProba[i], 4);
-    if (i < N_CLASSES - 1)
-      Serial.print(", ");
-  }
-  Serial.println();
-  Serial.print("Pred: ");
-  Serial.print(CLASS_NAMES[ensemblePred]);
-  if (isLabeled) {
-    Serial.print(" | True: ");
-    Serial.println(CLASS_NAMES[labelIdx]);
-  } else {
-    Serial.println(" | True: <none>");
-  }
-
-  // Tree size diagnostics
-  Serial.print("Leaves: ");
-  Serial.print(hat0.leafCount());
-  Serial.print(",");
-  Serial.print(hat1.leafCount());
-  Serial.print(",");
-  Serial.print(hat2.leafCount());
-  Serial.print(" | Internals: ");
-  Serial.print(hat0.internalCount());
-  Serial.print(",");
-  Serial.print(hat1.internalCount());
-  Serial.print(",");
-  Serial.println(hat2.internalCount());
-  Serial.print("Resets: ");
-  Serial.print(hat0.resetCount());
-  Serial.print(",");
-  Serial.print(hat1.resetCount());
-  Serial.print(",");
-  Serial.println(hat2.resetCount());
-
-  if (isLabeled) {
-    float runningAcc =
-        labeledSamples > 0
-            ? 100.0f * (float)correctLabeledSamples / (float)labeledSamples
-            : 0.0f;
-    Serial.print("Acc: ");
-    Serial.print(runningAcc, 2);
-    Serial.print("% (");
-    Serial.print(correctLabeledSamples);
-    Serial.print("/");
-    Serial.print(labeledSamples);
-    Serial.println(")");
-    Serial.println(ensemblePred == labelIdx ? "CORRECT" : "WRONG");
-  } else {
-    Serial.println("UNLABELED");
+    Serial.println();
+    Serial.print("Pred: ");
+    Serial.println(CLASS_NAMES[pred]);
   }
 }
 
+// ── Setup
+// ─────────────────────────────────────────────────────────────────────
 void setup() {
-  Serial.begin(115200); // same as streamer.py BAUD
+  Serial.begin(1000000);
 
-  unsigned long usb_timeout = millis();
-  while (!Serial) {
-    if (millis() - usb_timeout > 4000)
-      break;
-  }
-
-  delay(1000);
-  while (Serial.available()) {
-    Serial.read();
-  }
-
+  // Wait for "GO\n" handshake from Python
   while (true) {
-    if (Serial.available() > 0) {
-      char c = Serial.read();
-      if (c == 'X') {
-
-        Serial.println("READY");
+    Serial.println("READY");
+    delay(200);
+    if (Serial.available() >= 3) {
+      char buf[4] = {};
+      Serial.readBytes(buf, 3);
+      if (strncmp(buf, "GO\n", 3) == 0)
         break;
-      }
+      // Flush unexpected bytes and retry
+      while (Serial.available())
+        Serial.read();
     }
-    delay(10);
   }
-
-  while (Serial.available()) {
+  while (Serial.available())
     Serial.read();
-  }
 }
 
+// ── Main loop
+// ─────────────────────────────────────────────────────────────────
 void loop() {
-  if (Serial.available() > 0) {
-    char command = Serial.read();
+  // Signal Python that we are ready for next window
+  Serial.println("SEND");
 
-    if (command == 'D') {
+  // Wait for command byte
+  while (!Serial.available())
+    ;
+  char cmd = Serial.read();
 
-      delay(2);
-      get_data();
-    } else if (command == 'E') {
+  if (cmd == 'D') {
+    // ── Training window ───────────────────────────────────────────────
+    if (!readSignal())
+      return;
+    int labelIdx = readLabel();
+    processWindow(labelIdx, /*doTrain=*/true, /*doValidate=*/false);
+    Serial.println("TRAIN");
 
-      unsigned long start = millis();
-      while (!Serial.available()) {
-        if (millis() - start > 200)
+  } else if (cmd == 'V') {
+    // ── Start validation pass ─────────────────────────────────────────
+    // Python sends 'V' then streams windows with 'D' + 'U' + label.
+    // After all val windows, Python sends 'F' to finish.
+    val_total = 0;
+    val_correct = 0;
+    val_loss = 0.0f;
+
+    while (true) {
+      Serial.println("SEND");
+      while (!Serial.available())
+        ;
+      char vcmd = Serial.read();
+
+      if (vcmd == 'F')
+        break; // end of validation
+
+      if (vcmd == 'D') {
+        if (!readSignal())
+          continue;
+        int labelIdx = readLabel();
+        processWindow(labelIdx, /*doTrain=*/false, /*doValidate=*/true);
+        Serial.println("INFER");
+      }
+    }
+
+    // Report validation results
+    float avgLoss = val_total > 0 ? val_loss / val_total : 0.0f;
+    float acc = val_total > 0 ? (float)val_correct / val_total : 0.0f;
+    Serial.print("VAL_LOSS:");
+    Serial.println(avgLoss, 4);
+    Serial.print("VAL_ACC:");
+    Serial.println(acc, 4);
+
+  } else if (cmd == 'E') {
+    // ── Export model snapshot ─────────────────────────────────────────
+    unsigned long start = millis();
+    while (!Serial.available() && millis() - start < 200)
+      ;
+    if (Serial.available() && Serial.read() == 'X') {
+      Serial.println("START_EXPORT");
+      Serial.print("# MondrianForest: trees=");
+      Serial.print(MF_N_TREES);
+      Serial.print(" lambda=");
+      Serial.print(MF_LAMBDA);
+      Serial.print(" nodes=");
+      Serial.println(mf.totalNodes());
+      Serial.println("END_EXPORT");
+      while (true)
+        if (Serial.available() && Serial.read() == 'R')
           break;
-      }
-      if (Serial.available() && Serial.read() == 'X') {
-        Serial.println("START_EXPORT");
-        Serial.println("#ifndef TRAINED_WEIGHTS_H");
-        Serial.println("#define TRAINED_WEIGHTS_H");
-        hat0.exportSnapshot("ensemble_tree_0");
-        hat1.exportSnapshot("ensemble_tree_1");
-        hat2.exportSnapshot("ensemble_tree_2");
-        Serial.println("#endif");
-        Serial.println("END_EXPORT");
-        while (true) {
-          if (Serial.available() && Serial.read() == 'R')
-            break;
-        }
-      }
     }
   }
 }
-
-// fork + knife

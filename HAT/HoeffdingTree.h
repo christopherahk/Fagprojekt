@@ -137,8 +137,8 @@ public:
 private:
   // LIMITED!!!!!!!!! POWEEEEERRRRRRR!!!!!!!
   // less leaves/internals for small ensemble
-  static const int MAX_LEAVES = 20;    // i think 20 is enough but testing 30
-  static const int MAX_INTERNALS = 19; // should be 1 less than max leaves
+  static const int MAX_LEAVES = 12;    // i think 20 is enough but testing 30
+  static const int MAX_INTERNALS = 11; // should be 1 less than max leaves
   static const int MAX_FEATURES = 336;
   static const int MAX_CLASSES = 3;
   static const int NO_PARENT = -1;

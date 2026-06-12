@@ -1,72 +1,30 @@
 import numpy as np
-from scipy.signal import decimate
-from load_intan_rhd_format import read_data
 import os
 import serial
 import random
 import time
 import csv
-from dataclasses import dataclass
-from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import RobustScaler
 from tqdm import tqdm
 
 PORT = "COM7"
-BAUD = 115200
+BAUD = 1000000
 
 DOWNSAMPLE_FACTOR = 50
-N_CHANNELS = 56
-SEQ_LEN = 32
-CHUNK_SIZE = 256
-EPOCHS = 10
-SUBSAMPLE_RATE = 10 # lower to increase data
+N_CHANNELS        = 56
+SEQ_LEN           = 32
+CHUNK_SIZE        = 256
+EPOCHS            = 30
+SUBSAMPLE_RATE    = 10
+RANDOM_SEED       = 10
 
-CLASSES = {
-    "DORSIFLEXION": 0,
-    "PLANTARFLEXION": 1,
-    "PRICKING": 2
-}
+N_CLASSES = 3
+CLASS_NAMES = ("dorsi", "plantar", "none")  # must match Arduino
 
-N_CLASSES = len(CLASSES)
-ARDUINO_CLASS_NAMES = ("dorsi", "plantar", "none")
-ARDUINO_NAME_TO_LABEL = {name: idx for idx, name in enumerate(ARDUINO_CLASS_NAMES)}
+minimum_val_loss = np.inf
+val_loss_counter = 0
 
-UNLABELED_LABEL = -1
-PSEUDO_LABEL_CONFIDENCE = 0.85
-SEMI_SUPERVISED_UNLABELED_FRACTION = 0.0
-SEMI_SUPERVISED_SEED = 42
-
-
-@dataclass
-class ArduinoResult:
-    status: str
-    probs: np.ndarray | None = None
-    pred_name: str | None = None
-    pred_idx: int | None = None
-
-def load_and_downsample(filename, num_channels=N_CHANNELS, downsample_factor=DOWNSAMPLE_FACTOR):
-    print(f"Loading {filename}")
-    result = read_data(filename)
-    data = result['amplifier_data'][:num_channels]
-    t = result['t_amplifier']
-
-    print("Downsampling")
-    downsampled = np.stack([
-        decimate(data[i], downsample_factor, ftype="fir", zero_phase=True)
-        for i in range(num_channels)
-    ])
-
-    t_ds = t[::downsample_factor][:downsampled.shape[1]]
-    WINDOW_SIZE = 1
-    n_windows = downsampled.shape[1] // WINDOW_SIZE
-
-    downsampled = downsampled[:, :n_windows * WINDOW_SIZE]
-    t_ds = t_ds[:n_windows * WINDOW_SIZE]
-
-    windows = downsampled.reshape(num_channels, n_windows, WINDOW_SIZE)
-    windows = np.transpose(windows, (1, 0, 2))
-
-    return t_ds, windows
+# ── Serial helpers ────────────────────────────────────────────────────────────
 
 def readline(ser):
     try:
@@ -74,190 +32,81 @@ def readline(ser):
     except Exception:
         return ""
 
-def parse_probs(line):
-    _, raw_values = line.split(":", 1)
-    return np.array([float(value.strip()) for value in raw_values.split(",")], dtype=np.float32)
+def wait_for_send(ser, timeout_s=10.0):
+    """Block until Arduino sends 'SEND', discard other lines."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        line = readline(ser)
+        if line == "SEND":
+            return True
+    return False
 
+def wait_for_answer(ser, timeout_s=5.0):
+    """
+    Read lines until TRAIN or INFER is received.
+    Returns (probs, pred_idx, status).
+    """
+    probs    = None
+    pred_idx = -1
+    status   = "timeout"
+    deadline = time.monotonic() + timeout_s
 
-def parse_pred(line):
-    raw = line.split(":", 1)[1].strip()
-    name = raw.split("|", 1)[0].strip()
-    return name
-
-
-def wait_for_result(ser, window_idx, timeout_s=1.0):
-    start_time = time.monotonic()
-    result = ArduinoResult(status="timeout", probs=None, pred_name=None, pred_idx=None)
-
-    while (time.monotonic() - start_time) < timeout_s:
-        if ser.in_waiting == 0:
-            time.sleep(0.001)
-            continue
-
+    while time.monotonic() < deadline:
         line = readline(ser)
         if not line:
             continue
+        if line.startswith("Probs:"):
+            try:
+                raw  = line.split(":", 1)[1].strip()
+                probs = np.array([float(v.strip()) for v in raw.split(",")],
+                                  dtype=np.float32)
+            except Exception:
+                pass
+        elif line.startswith("Pred:"):
+            try:
+                name = line.split(":", 1)[1].strip()
+                mapping = {n: i for i, n in enumerate(CLASS_NAMES)}
+                pred_idx = mapping.get(name, -1)
+            except Exception:
+                pass
+        elif line == "TRAIN":
+            status = "train"
+            return probs, pred_idx, status
+        elif line == "INFER":
+            status = "infer"
+            return probs, pred_idx, status
 
-        if "Probs" in line:
-            result.probs = parse_probs(line)
-            continue
-        if "Pred" in line:
-            pred_name = parse_pred(line)
-            result.pred_name = pred_name
-            result.pred_idx = ARDUINO_NAME_TO_LABEL.get(pred_name) if pred_name else None
-            continue
-        # if "Resets" in line:
-        #     tqdm.write(f"  {line}")
-        #     continue
+    return probs, pred_idx, status
 
-        if "TRAIN" in line:
-            result.status = "TRAIN"
-            return result
-        if "INFER" in line:
-            result.status = "INFER"
-            return result
-        if "UNLABELED" in line:
-            result.status = "UNLABELED"
-            return result
-        if "INVALID" in line:
-            result.status = "INVALID_LABEL"
-            return result
-
-    return result
-
-
-def send_window(ser, window, label_idx):
-    ser.write(b"D")
-    ser.flush()
-
+def send_signal(ser, window):
+    """Send raw float32 window in CHUNK_SIZE chunks."""
     data_bytes = window.astype(np.float32).tobytes()
-
     for j in range(0, len(data_bytes), CHUNK_SIZE):
-        chunk = data_bytes[j:j + CHUNK_SIZE]
-        ser.write(chunk)
+        ser.write(data_bytes[j:j + CHUNK_SIZE])
         ser.flush()
         time.sleep(0.002)
 
-    if label_idx is None or label_idx < 0:
-        ser.write(b"U")
-        ser.flush()
-        return
-
-    one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
-    one_hot[label_idx] = 1
-    ser.write(b"L")
-    ser.write(one_hot.tobytes())
-    ser.flush()
-
-def maybe_enable_semi_supervised(labels, unlabeled_fraction=SEMI_SUPERVISED_UNLABELED_FRACTION, seed=SEMI_SUPERVISED_SEED):
-    if unlabeled_fraction <= 0.0:
-        return labels
-
-    rng = np.random.default_rng(seed)
-    labels = labels.copy()
-    mask = rng.random(len(labels)) < unlabeled_fraction
-    labels[mask] = UNLABELED_LABEL
-    return labels
-
-def save_model_to_file(ser, filename="trained_weights.h"):
-    print("Requesting final weight dump from Arduino.")
-    ser.reset_input_buffer()
-    ser.write(b'EX')
-    ser.flush()
-
-    with open(filename, "w") as f:
-        started = False
-        while True:
-            line = readline(ser)
-            if "START_EXPORT" in line:
-                started = True
-                continue
-            if "END_EXPORT" in line:
-                break
-            if started:
-                f.write(line + "\n")
-    print(f"Final model saved to {filename}")
-    ser.write(b'R')
-    ser.flush()
-
-
-def open_accuracy_log(path="training_accuracy.csv"):
-    f = open(path, "w", newline="", encoding="utf-8")
-    writer = csv.writer(f)
-    writer.writerow([
-        "epoch",
-        "window_index",
-        "label",
-        "pred",
-        "confidence",
-        "running_correct",
-        "running_total",
-        "running_accuracy",
-        "status",
-    ])
-    return f, writer
-
-
-def log_accuracy_row(writer, epoch, window_index, label, pred, confidence, running_correct, running_total, status):
-    running_accuracy = (running_correct / running_total) if running_total > 0 else 0.0
-    writer.writerow([
-        epoch,
-        window_index,
-        label,
-        pred,
-        f"{confidence:.6f}",
-        running_correct,
-        running_total,
-        f"{running_accuracy:.6f}",
-        status,
-    ])
-
-# def prepare_dataset(rms_data, angles_ds):
-#     rms_data = rms_data[:N_CHANNELS, :]
-#     X = rms_data.T
-
-#     y = np.zeros(len(angles_ds), dtype=np.int64)
-#     y[angles_ds > 2.0] = 1
-#     y[angles_ds < -2.0] = 2
-
-#     X_seq, y_seq = [], []
-
-#     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
-#         X_seq.append(X[i - SEQ_LEN:i].T)
-#         y_seq.append(y[i])
-
-#     return np.array(X_seq), np.array(y_seq)
+# ── Dataset ───────────────────────────────────────────────────────────────────
 
 def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
 
-    # Keep the Python label order aligned with Arduino:
-    # 0 = dorsi, 1 = plantar, 2 = none.
-    y = np.full(len(angles_ds), 2, dtype=np.int64)
-    y[angles_ds > 2.0] = 1
-    y[angles_ds < -2.0] = 0
+    y = np.full(len(angles_ds), 2, dtype=np.int64)  # default: none
+    y[angles_ds >  2.0] = 1   # plantar
+    y[angles_ds < -2.0] = 0   # dorsi
 
     X_seq, y_seq = [], []
     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
         window_labels = y[i - SEQ_LEN:i]
-
-        # majority label instead of last
-        counts = np.bincount(window_labels, minlength=3)
+        counts   = np.bincount(window_labels, minlength=3)
         majority = int(np.argmax(counts))
-
-        # skip below threshold
         if counts[majority] < SEQ_LEN * 0.6:
             continue
-
         X_seq.append(X[i - SEQ_LEN:i].T)
         y_seq.append(majority)
 
     return np.array(X_seq), np.array(y_seq)
-
-
-def make_semi_supervised(labels, unlabeled_fraction=SEMI_SUPERVISED_UNLABELED_FRACTION, seed=SEMI_SUPERVISED_SEED):
-    return maybe_enable_semi_supervised(labels, unlabeled_fraction=unlabeled_fraction, seed=seed)
 
 def load_rat(path):
     data = np.load(path)
@@ -270,149 +119,257 @@ def build_dataset(data_dir, rat_ids):
         if os.path.exists(path):
             rms, ang = load_rat(path)
             X, y = prepare_dataset(rms, ang)
-            X_all.append(X)
-            y_all.append(y)
+            X_all.append(X); y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
+
+def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED):
+    os.makedirs(out_dir, exist_ok=True)
+    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
+
+    if all(os.path.exists(p) for p in paths.values()):
+        print("Splits already exist, loading")
+        return {s: np.load(p) for s, p in paths.items()}
+
+    print("Building dataset...")
+    X, y = build_dataset(data_dir, rat_ids)
+
+    rng       = np.random.default_rng(seed)
+    idx       = rng.permutation(len(X))
+    train_end = int(0.70 * len(idx))
+    val_end   = int(0.85 * len(idx))
+    splits    = {"train": idx[:train_end],
+                 "val":   idx[train_end:val_end],
+                 "test":  idx[val_end:]}
+
+    scaler    = RobustScaler()
+    n_ch      = X.shape[1]
+
+    def scale(idx_arr, fit=False):
+        raw  = X[idx_arr]
+        flat = raw.transpose(0, 2, 1).reshape(-1, n_ch)
+        flat = scaler.fit_transform(flat) if fit else scaler.transform(flat)
+        return flat.reshape(raw.shape[0], raw.shape[2], n_ch).transpose(0, 2, 1)
+
+    X_tr = scale(splits["train"], fit=True)
+    X_va = scale(splits["val"])
+    X_te = scale(splits["test"])
+
+    np.savez(paths["train"], X=X_tr, y=y[splits["train"]])
+    np.savez(paths["val"],   X=X_va, y=y[splits["val"]])
+    np.savez(paths["test"],  X=X_te, y=y[splits["test"]])
+    np.savez("scaler.npz",
+             mean=np.asarray(scaler.center_),
+             scale=np.asarray(scaler.scale_))
+
+    return {s: np.load(p) for s, p in paths.items()}
+
+# ── Training epoch ────────────────────────────────────────────────────────────
+
+def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
+    print(f"\n--- Epoch {epoch_idx + 1}/{EPOCHS} ---")
+    combined = list(zip(windows, labels))
+    random.shuffle(combined)
+
+    running_correct = 0
+    running_total   = 0
+    running_cm      = np.zeros((N_CLASSES, N_CLASSES), dtype=np.int64)
+
+    pbar = tqdm(enumerate(combined), total=len(combined),
+                desc=f"Epoch {epoch_idx+1}", unit="win", leave=False)
+
+    for i, (window, label) in pbar:
+        if not wait_for_send(ser):
+            tqdm.write(f"  Timeout waiting for SEND at window {i}")
+            continue
+
+        # Send command + data + label
+        ser.write(b"D")
+        ser.flush()
+        send_signal(ser, window)
+
+        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+        one_hot[label] = 1
+        ser.write(b"L")
+        ser.write(one_hot.tobytes())
+        ser.flush()
+
+        probs, pred_idx, status = wait_for_answer(ser)
+        confidence = float(np.max(probs)) if probs is not None else 0.0
+
+        if pred_idx >= 0:
+            running_total += 1
+            if pred_idx == int(label):
+                running_correct += 1
+            running_cm[int(label), pred_idx] += 1
+
+        f1 = calculate_macro_f1(running_cm)
+        acc = running_correct / running_total if running_total > 0 else 0.0
+
+        csv_writer.writerow([
+            epoch_idx, i, int(label), pred_idx,
+            f"{confidence:.4f}", running_correct, running_total,
+            f"{acc:.6f}", f"{f1:.6f}", status,
+        ])
+
+        if running_total > 0:
+            pbar.set_postfix({"Acc": f"{acc*100:.2f}%", "F1": f"{f1:.4f}"})
+
+    final_acc = running_correct / running_total if running_total > 0 else 0.0
+    final_f1  = calculate_macro_f1(running_cm)
+    print(f"Epoch {epoch_idx+1} final -- Acc: {final_acc*100:.2f}%  F1: {final_f1:.4f}")
+
+# ── Validation pass ───────────────────────────────────────────────────────────
+
+def run_validation(ser, X_val, y_val):
+    print("\nValidation pass...")
+    ser.reset_input_buffer()
+
+    # Tell Arduino to enter validation mode
+    ser.write(b"V")
+    ser.flush()
+
+    for window, label in zip(X_val, y_val):
+        if not wait_for_send(ser):
+            continue
+
+        ser.write(b"D")
+        ser.flush()
+        send_signal(ser, window)
+
+        # 'U' mode = infer only (no training), but still send label for loss
+        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+        one_hot[label] = 1
+        ser.write(b"U")
+        ser.write(one_hot.tobytes())
+        ser.flush()
+
+        # Wait for INFER acknowledgement
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            line = readline(ser)
+            if line == "INFER":
+                break
+
+    # Send 'F' to signal end of validation
+    ser.write(b"F")
+    ser.flush()
+
+    # Wait for VAL_LOSS and VAL_ACC lines
+    val_lines = []
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        line = readline(ser)
+        if line.startswith("VAL_LOSS") or line.startswith("VAL_ACC"):
+            print(f"  [VAL] {line}")
+            val_lines.append(line)
+            with open("results_val.txt", "a") as f:
+                f.write(line + "\n")
+        if line.startswith("VAL_ACC"):
+            break
+
+    return val_lines
+
+# ── Early stopping ────────────────────────────────────────────────────────────
+
+def calculate_macro_f1(cm):
+    f1s = []
+    for i in range(N_CLASSES):
+        tp = cm[i, i]
+        fp = cm[:, i].sum() - tp
+        fn = cm[i, :].sum() - tp
+        p  = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        r  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1s.append(2*p*r / (p+r) if (p+r) > 0 else 0.0)
+    return float(np.mean(f1s))
+
+def save_model(ser, filename="trained_weights.h"):
+    print("Requesting model export...")
+    ser.reset_input_buffer()
+    ser.write(b"EX")
+    ser.flush()
+    with open(filename, "w") as f:
+        started = False
+        while True:
+            line = readline(ser)
+            if "START_EXPORT" in line: started = True; continue
+            if "END_EXPORT"   in line: break
+            if started: f.write(line + "\n")
+    print(f"Model saved to {filename}")
+    ser.write(b"R")
+    ser.flush()
+
+def early_stopping_check(ser, val_lines):
+    global minimum_val_loss, val_loss_counter
+    for line in val_lines:
+        if "VAL_LOSS" in line:
+            try:
+                loss = float(line.split(":")[1])
+                if loss < minimum_val_loss:
+                    minimum_val_loss = loss
+                    val_loss_counter = 0
+                    save_model(ser)
+                else:
+                    val_loss_counter += 1
+            except Exception:
+                pass
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-    rat_ids = list(range(4, 10))
+    rat_ids  = list(range(4, 10))
 
-    print("Building subsampled dataset...")
-    X, y = build_dataset(data_dir, rat_ids)
-    print(f"New Dataset Size: {len(X)} windows")
+    splits   = load_or_build_splits(data_dir, rat_ids)
+    X_train  = splits["train"]["X"]
+    y_train  = splits["train"]["y"]
+    X_val    = splits["val"]["X"]
+    y_val    = splits["val"]["y"]
 
-    y = make_semi_supervised(y)
-    print(
-        f"Supervised labels: {(y >= 0).sum()} | Unlabeled: {(y < 0).sum()} | "
-        f"Pseudo-label threshold: {PSEUDO_LABEL_CONFIDENCE:.2f}"
-    )
+    f_csv   = open("training_accuracy.csv", "w", newline="", encoding="utf-8")
+    writer  = csv.writer(f_csv)
+    writer.writerow(["epoch", "window_index", "label", "pred", "confidence",
+                     "running_correct", "running_total",
+                     "running_accuracy", "running_f1", "status"])
 
-    n_channels = X.shape[1]
-    X_2d = X.transpose(0, 2, 1).reshape(-1, n_channels)
-    scaler = RobustScaler() # testing if better than standard scaler
-    X_2d = scaler.fit_transform(X_2d)
-    X = X_2d.reshape(X.shape[0], X.shape[2], n_channels).transpose(0, 2, 1)
+    print("Opening serial port...")
+    ser = serial.Serial(PORT, BAUD, timeout=5)
 
-    scaler_mean = np.asarray(scaler.center_)
-    scaler_scale = np.asarray(scaler.scale_)
-    np.savez("scaler.npz", mean=scaler_mean, scale=scaler_scale)
-
-    accuracy_log_file, accuracy_writer = open_accuracy_log("training_accuracy.csv")
-
-    print("opening serial port...")
-    ser = serial.Serial(PORT, BAUD, timeout=3)
-
-    ser.dtr = True
-    ser.rts = True
-
-    print("Waiting for Arduino USB stack to stabilize...")
-    time.sleep(3)
-    ser.reset_input_buffer()
-    ser.reset_output_buffer()
-
+    # Handshake
     arduino_ready = False
-    print("Sending 'X' handshake to Arduino...")
-
-    for i in range(10):
-        print(f"Ping {i+1}/10...")
-        ser.write(b"X")
-        ser.flush()
-
-        time.sleep(0.5)
-        response = readline(ser)
-        print(f"Arduino responded: '{response}'")
-
-        if "READY" in response:
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        line = readline(ser)
+        if line == "READY":
+            ser.write(b"GO\n")
+            ser.flush()
             arduino_ready = True
-            print("Handshake successful! Connection established!")
-
-            ser.reset_input_buffer()
-            ser.reset_output_buffer()
+            print("Handshake complete!")
             break
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     if not arduino_ready:
-        print("Arduino Connection Failed.")
-        ser.close()
-        exit()
+        print("Arduino not responding.")
+        f_csv.close(); ser.close(); exit()
+
+    # Flush any leftover bytes after handshake
+    time.sleep(0.5)
+    ser.reset_input_buffer()
 
     try:
-        running_correct = 0
-        running_total = 0
+        for epoch in range(EPOCHS):
+            stream_epoch(ser, epoch, X_train, y_train, writer)
+            f_csv.flush()
 
+            val_lines = run_validation(ser, X_val, y_val)
+            early_stopping_check(ser, val_lines)
 
-        epoch_pbar = tqdm(range(EPOCHS), desc="Training Process", unit="epoch")
-        for epoch in epoch_pbar:
-            combined = list(zip(X, y))
-            random.shuffle(combined)
-
-
-            window_pbar = tqdm(
-                enumerate(combined),
-                total=len(combined),
-                desc=f"Epoch {epoch + 1}/{EPOCHS}",
-                unit="win",
-                leave=False
-            )
-
-            for i, (window, label) in window_pbar:
-                is_labeled = label is not None and int(label) >= 0
-                send_window(ser, window, int(label) if is_labeled else UNLABELED_LABEL)
-                result = wait_for_result(ser, i, timeout_s=2.0)
-
-                confidence = float(np.max(result.probs)) if result.probs is not None else 0.0
-                pred_name = result.pred_name if result.pred_name is not None else ""
-                pred_idx = result.pred_idx if result.pred_idx is not None else -1
-
-                if is_labeled and pred_idx >= 0:
-                    running_total += 1
-                    if pred_idx == int(label):
-                        running_correct += 1
-
-                log_accuracy_row(
-                    accuracy_writer,
-                    epoch,
-                    i,
-                    int(label) if is_labeled else UNLABELED_LABEL,
-                    pred_idx,
-                    confidence,
-                    running_correct,
-                    running_total,
-                    result.status,
-                )
-
-                if not is_labeled:
-                    if pred_idx >= 0 and confidence >= PSEUDO_LABEL_CONFIDENCE:
-
-                        tqdm.write(f"Pseudo-labeling unlabeled sample as {pred_name} (conf={confidence:.3f})")
-                        send_window(ser, window, pred_idx)
-                        train_result = wait_for_result(ser, i, timeout_s=2.0)
-                        log_accuracy_row(
-                            accuracy_writer,
-                            epoch,
-                            i,
-                            UNLABELED_LABEL,
-                            pred_idx,
-                            confidence,
-                            running_correct,
-                            running_total,
-                            f"pseudo-{train_result.status}",
-                        )
-                    else:
-                        pass
-
-
-                if running_total > 0:
-                    current_acc = (running_correct / running_total) * 100
-                    window_pbar.set_postfix({"Acc": f"{current_acc:.2f}%"})
-                time.sleep(0.01)
+            if val_loss_counter >= 5:
+                print("\nEarly stopping triggered.")
+                break
 
     except KeyboardInterrupt:
-        print("\nTraining interrupted by user.")
+        print("\nInterrupted.")
 
-    accuracy_log_file.flush()
-    accuracy_log_file.close()
-
-    save_model_to_file(ser, "trained_weights.h")
+    f_csv.close()
     ser.close()
+    print("Done.")

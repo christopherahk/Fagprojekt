@@ -87,6 +87,38 @@ def evaluate_logo_per_rat_norm(name, clf, X_flat, y, groups):
     scores = np.array(scores)
     print(f"{name} LOGO per-split norm: {scores} mean: {scores.mean():.4f}")
 
+def features_rbi_fft(X, n_bins=8):
+    """
+    RBI (8 bins) + FFT power spectrum combined.
+    56 channels * (8 + 17) = 56 * 25 = 1400 features.
+    Memory: 1400 * 3 * 2 = 8400 bytes/leaf -- 20 leaves = 164 KB (tight).
+    Use n_bins=4 for safer budget: 56 * (4+17) = 1176 features.
+    """
+    n, ch, w   = X.shape
+    n_fft_bins = w // 2 + 1          # 17
+    n_per_ch   = n_bins + n_fft_bins  # 8+17 = 25
+    out        = np.zeros((n, ch * n_per_ch), dtype=np.float32)
+
+    for i in range(n):
+        for c in range(ch):
+            seg      = X[i, c, :]
+            bin_size = w // n_bins
+
+            # RBI: rectify then integrate per bin, log-compressed
+            rectified = np.abs(seg)
+            rbi = np.array([rectified[b*bin_size:(b+1)*bin_size].sum()
+                            for b in range(n_bins)])
+            rbi = np.log1p(rbi)
+
+            # FFT power spectrum, Hanning windowed, log-compressed
+            windowed  = seg * np.hanning(w)
+            fft_power = np.log1p(np.abs(np.fft.rfft(windowed)) ** 2)
+
+            base = c * n_per_ch
+            out[i, base:base+n_bins]          = rbi
+            out[i, base+n_bins:base+n_per_ch] = fft_power
+    return out
+
 
 if __name__ == "__main__":
     data_dir = Path(__file__).resolve().parent.parent / "dataset_rats_50w"
@@ -120,7 +152,7 @@ if __name__ == "__main__":
 
     # extended features evaluation (labeled only)
     X_ext = extract_features_extended(X_l)
-    rf_ext = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42)
+    rf_ext = RandomForestClassifier(n_estimators=200, max_depth=3, random_state=42)
     print("Extended features RF (5-fold):", cross_val_score(rf_ext, X_ext, y_l, cv=5).mean())
 
     # leave-one-rat-out on labeled samples
@@ -190,3 +222,8 @@ if __name__ == "__main__":
     evaluate_logo_per_rat_norm("RF SEQ_LEN=32", rf_32, X32_ext, y32, groups32)
 
     streamer.SEQ_LEN = original_seq_len
+    X_rbi_fft = features_rbi_fft(X_l, n_bins=4)  # start med 4 bins
+    evaluate_logo_per_rat_norm("RBI(4) + FFT", rf_ext, X_rbi_fft, y_l, groups_l)
+
+    X_rbi_fft8 = features_rbi_fft(X_l, n_bins=8)
+    evaluate_logo_per_rat_norm("RBI(8) + FFT", rf_ext, X_rbi_fft8, y_l, groups_l)
