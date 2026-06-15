@@ -1,4 +1,5 @@
 #include "FeatureExtractor.h"
+
 #define MF_LAMBDA 6.0f
 #define MF_N_TREES 18
 #define MF_MAX_NODES 127
@@ -19,14 +20,12 @@ static float values[N_FLOATS];
 static float features[N_FEATURES];
 static float proba[N_CLASSES];
 
-// Validation counters -- reset each validation pass
 static int val_total = 0;
 static int val_correct = 0;
 static float val_loss = 0.0f;
 
 MondrianForest mf;
 
-// read window
 bool readSignal() {
   int received = 0;
   uint8_t *buf = reinterpret_cast<uint8_t *>(values);
@@ -40,43 +39,37 @@ bool readSignal() {
         return false;
       }
     }
-    for (int i = 0; i < to_read; i++)
+    for (int i = 0; i < to_read; i++) {
       buf[received++] = Serial.read();
+    }
+    Serial.println("ACK");
   }
   return true;
 }
 
-// one hot
-// Mode L = labeled (train), U = unlabeled (val/infer only).
-// Returns label index 0-2, or -1 for unlabeled/error.
 int readLabel() {
-  unsigned long start = millis();
+  unsigned long s = millis();
   while (!Serial.available()) {
-    if (millis() - start > 2000)
+    if (millis() - s > 2000)
       return -1;
   }
-  char mode = (char)Serial.read();
+  char modeByte = Serial.read();
 
   int label[N_CLASSES];
   for (int i = 0; i < N_CLASSES; i++) {
-    unsigned long s = millis();
+    unsigned long labelStart = millis();
     while (!Serial.available()) {
-      if (millis() - s > 2000)
+      if (millis() - labelStart > 2000)
         return -1;
     }
     label[i] = Serial.read();
   }
-
-  if (mode == 'U')
-    return -1; // unlabeled infer only
-
-  for (int i = 0; i < N_CLASSES; i++)
+  for (int i = 0; i < N_CLASSES; i++) {
     if (label[i] == 1)
       return i;
+  }
   return -1;
 }
-
-// Process one window, extract features, predict, optionally train
 
 void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   extractFeatures(values, N_CHANNELS, WINDOW, features);
@@ -84,7 +77,6 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   mf.predictProba(features, proba);
   int pred = mf.predict(features);
 
-  // Cross-entropy loss
   float loss = 0.0f;
   if (labelIdx >= 0) {
     float p = proba[labelIdx];
@@ -104,7 +96,6 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
   }
 
   if (!doValidate) {
-    // Training mode
     Serial.print("Probs: ");
     for (int i = 0; i < N_CLASSES; i++) {
       Serial.print(proba[i], 4);
@@ -119,16 +110,16 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
 
 void setup() {
   Serial.begin(1000000);
-
   while (true) {
     Serial.println("READY");
-    delay(200);
-    if (Serial.available() >= 3) {
-      char buf[4] = {};
-      Serial.readBytes(buf, 3);
-      if (strncmp(buf, "GO\n", 3) == 0)
+    delay(500);
+    if (Serial.available() > 0) {
+      char c = Serial.read();
+      if (c == 'G') {
+        while (Serial.available())
+          Serial.read();
         break;
-
+      }
       while (Serial.available())
         Serial.read();
     }
@@ -138,32 +129,30 @@ void setup() {
 }
 
 void loop() {
+  while (Serial.available() == 0) {
+    Serial.println("SEND");
+    delay(10);
+  }
 
-  Serial.println("SEND");
-
-  // Wait for command byte
-  while (!Serial.available())
-    ;
   char cmd = Serial.read();
 
   if (cmd == 'D') {
-
     if (!readSignal())
       return;
     int labelIdx = readLabel();
-    processWindow(labelIdx, /*doTrain=*/true, /*doValidate=*/false);
+    processWindow(labelIdx, true, false);
     Serial.println("TRAIN");
 
   } else if (cmd == 'V') {
-
     val_total = 0;
     val_correct = 0;
     val_loss = 0.0f;
 
     while (true) {
-      Serial.println("SEND");
-      while (!Serial.available())
-        ;
+      while (Serial.available() == 0) {
+        Serial.println("SEND");
+        delay(10);
+      }
       char vcmd = Serial.read();
 
       if (vcmd == 'F')
@@ -173,7 +162,7 @@ void loop() {
         if (!readSignal())
           continue;
         int labelIdx = readLabel();
-        processWindow(labelIdx, /*doTrain=*/false, /*doValidate=*/true);
+        processWindow(labelIdx, false, true);
         Serial.println("INFER");
       }
     }
@@ -186,7 +175,6 @@ void loop() {
     Serial.println(acc, 4);
 
   } else if (cmd == 'E') {
-
     unsigned long start = millis();
     while (!Serial.available() && millis() - start < 200)
       ;

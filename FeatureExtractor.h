@@ -17,22 +17,15 @@
 //     17 bins * 56 channels = 952 features.
 //     Hanning windowed, log1p compressed.
 
-//   Total: 56 * (4 + 17) = 56 * 21 = 1176 features
-
-// Both use log1p compression to fit Q8.8 fixed-point range [-128, 127].
-
-// Input:  float[nChannels * window]  (row-major: channel 0 first)
-// Output: float[nChannels * (N_RBI_BINS + window/2 + 1)]
-// No heap allocation -- writes directly into caller's buffer.
-
 static const int N_RBI_BINS = 4;
 
 // Radix-2 DIT FFT for real input.
-// N must equal WINDOW (32). Hardcoded size avoids VLAs on Arduino.
+// N must equal WINDOW (32). Hardcoded size avoids issues on arduino.
 static void fft_power(const float *in, int N, float *power_out) {
   float re[32], im[32];
 
   // Apply Hanning window and copy to work buffers
+
   for (int i = 0; i < N; i++) {
     float w = 0.5f * (1.0f - cosf(2.0f * 3.14159265f * i / (N - 1)));
     re[i] = in[i] * w;
@@ -57,6 +50,9 @@ static void fft_power(const float *in, int N, float *power_out) {
   }
 
   // Cooley-Tukey butterfly
+
+  // cooley-tukey butterfly: a method for in-place FFT computation. Iteratively
+  // combines smaller DFTs into larger ones.
   for (int len = 2; len <= N; len <<= 1) {
     float ang = -2.0f * 3.14159265f / len;
     float wRe = cosf(ang);
@@ -79,7 +75,7 @@ static void fft_power(const float *in, int N, float *power_out) {
     }
   }
 
-  // Power spectrum for positive frequencies only, log1p compressed
+  // power spectrum for positive frequencies only, log1p compressed
   int n_bins = N / 2 + 1;
   for (int k = 0; k < n_bins; k++)
     power_out[k] = log1p(re[k] * re[k] + im[k] * im[k]);

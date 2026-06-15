@@ -15,7 +15,7 @@ SEQ_LEN    = 32
 SUBSAMPLE  = 10
 
 
-# ── Feature extraction (mirrors FeatureExtractor.h exactly) ──────────────────
+
 
 def extract_features(X: np.ndarray) -> np.ndarray:
     """
@@ -47,7 +47,6 @@ def extract_features(X: np.ndarray) -> np.ndarray:
     return out
 
 
-# ── Data loading ──────────────────────────────────────────────────────────────
 
 def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
@@ -88,7 +87,6 @@ def split_data(X, y, train=0.70, val=0.15, seed=42):
     )
 
 
-# ── SRAM constraint ───────────────────────────────────────────────────────────
 
 def fits_in_sram(n_trees: int, max_nodes: int,
                  budget_kb: float = 200.0) -> bool:
@@ -102,7 +100,6 @@ def fits_in_sram(n_trees: int, max_nodes: int,
     return (total / 1024) <= budget_kb
 
 
-# ── Train and evaluate one Mondrian-equivalent model ─────────────────────────
 
 def train_model(X_train, y_train, X_val, y_val, params, verbose=False):
     """
@@ -147,8 +144,6 @@ def train_model(X_train, y_train, X_val, y_val, params, verbose=False):
     return clf, scaler, y_val, y_pred
 
 
-# ── Optuna search ─────────────────────────────────────────────────────────────
-
 def run_optuna(X_train, y_train, X_val, y_val, seed=42):
     def objective(trial):
         params = {
@@ -178,7 +173,6 @@ def run_optuna(X_train, y_train, X_val, y_val, seed=42):
     return study.best_params
 
 
-# ── Leave-one-rat-out ─────────────────────────────────────────────────────────
 
 def leave_one_rat_out(data_dir, rat_ids, seed=42):
     results = {}
@@ -268,7 +262,6 @@ def leave_one_rat_out(data_dir, rat_ids, seed=42):
     return results
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"

@@ -4,12 +4,11 @@
 
 // Mondrian Forest -- online random forest
 
-// ── Configuration ────────────────────────────────────────────────────────────
 #ifndef MF_N_TREES
-#define MF_N_TREES 10 // ensemble size
+#define MF_N_TREES 18 // ensemble size
 #endif
 #ifndef MF_MAX_NODES
-#define MF_MAX_NODES 63 // depth-5 full binary tree: 2^6 - 1
+#define MF_MAX_NODES 127 // depth-5 full binary tree: 2^7 - 1
 #endif
 #ifndef MF_N_FEATURES
 #define MF_N_FEATURES 1176 // 56 * (4 RBI + 17 FFT)
@@ -149,8 +148,6 @@ private:
     }
   }
 
-  // recursive Mondrian tree update.
-  // at each node: update counts, then either recurse or try to split.
   void updateTree(int t, int nodeIdx, const float *features, int label,
                   float parentTau) {
     if (nodeIdx < 0 || nodeIdx >= trees_[t].nNodes)
@@ -191,7 +188,7 @@ private:
     if (totalExt < 1e-6f)
       return;
 
-    // sample split time -- only split if within budget
+    // sample split time, only split if within budget
     float splitTime = parentTau + mf_rand_exp(totalExt);
     if (splitTime > MF_LAMBDA)
       return;
@@ -215,7 +212,7 @@ private:
       }
     }
 
-    // threshold: uniformly in the extension region
+    // threshold, uniformly in the extension region
     float lo = mf_fromQ88(tree.fMin[splitDim]);
     float hi = mf_fromQ88(tree.fMax[splitDim]);
     float ext = 0.0f;

@@ -114,7 +114,7 @@ def process_rat(rat):
     angles_ds = f(times_ds)
 
     np.savez(
-        f"{rat}.npz",
+        f"dataset_rats_test/{rat}.npz",
         t=times_ds,
         a=angles_ds,
         rms_data=rms_data,

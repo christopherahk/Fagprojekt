@@ -30,7 +30,7 @@ struct LeakyReLU {
   Tensor dInputs;
   Tensor inputs;
 
-  float alpha;
+  float alpha = 0.01;
 
   void forward(const Tensor &inputs, const float alpha = 0.01);
   void backward(const Tensor &dValues);

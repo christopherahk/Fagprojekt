@@ -76,7 +76,7 @@ def evaluate_logo_per_rat_norm(name, clf, X_flat, y, groups):
         X_train, X_test = X_flat[train_idx], X_flat[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        # Normalize using only training rats' statistics
+        # Normalize using only training rat statistics
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
         X_test  = scaler.transform(X_test)

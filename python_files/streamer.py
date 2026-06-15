@@ -19,7 +19,7 @@ SUBSAMPLE_RATE    = 10
 RANDOM_SEED       = 10
 
 N_CLASSES = 3
-CLASS_NAMES = ("dorsi", "plantar", "none")  # must match Arduino
+CLASS_NAMES = ("dorsi", "plantar", "none")
 
 minimum_val_loss = np.inf
 val_loss_counter = 0
@@ -32,7 +32,6 @@ def readline(ser):
         return ""
 
 def wait_for_send(ser, timeout_s=10.0):
-    """Block until Arduino sends 'SEND', discard other lines."""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         line = readline(ser)
@@ -41,10 +40,6 @@ def wait_for_send(ser, timeout_s=10.0):
     return False
 
 def wait_for_answer(ser, timeout_s=5.0):
-    """
-    Read lines until TRAIN or INFER is received.
-    Returns (probs, pred_idx, status).
-    """
     probs    = None
     pred_idx = -1
     status   = "timeout"
@@ -57,8 +52,7 @@ def wait_for_answer(ser, timeout_s=5.0):
         if line.startswith("Probs:"):
             try:
                 raw  = line.split(":", 1)[1].strip()
-                probs = np.array([float(v.strip()) for v in raw.split(",")],
-                                  dtype=np.float32)
+                probs = np.array([float(v.strip()) for v in raw.split(",")], dtype=np.float32)
             except Exception:
                 pass
         elif line.startswith("Pred:"):
@@ -78,19 +72,21 @@ def wait_for_answer(ser, timeout_s=5.0):
     return probs, pred_idx, status
 
 def send_signal(ser, window):
-    """Send raw float32 window in CHUNK_SIZE chunks."""
+    """Sender float32 arrays i chunks af 256 bytes (kræver ACK tjek pga. main branch cnn adfærd)."""
     data_bytes = window.astype(np.float32).tobytes()
     for j in range(0, len(data_bytes), CHUNK_SIZE):
-        ser.write(data_bytes[j:j + CHUNK_SIZE])
+        chunk = data_bytes[j:j + CHUNK_SIZE]
+        ser.write(chunk)
         ser.flush()
-        time.sleep(0.002)
+        readline(ser)
+    time.sleep(0.002)
 
 
 def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
 
-    y = np.full(len(angles_ds), 2, dtype=np.int64)  # default: none
+    y = np.full(len(angles_ds), 2, dtype=np.int64)
     y[angles_ds >  2.0] = 1   # plantar
     y[angles_ds < -2.0] = 0   # dorsi
 
@@ -135,9 +131,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     idx       = rng.permutation(len(X))
     train_end = int(0.70 * len(idx))
     val_end   = int(0.85 * len(idx))
-    splits    = {"train": idx[:train_end],
-                 "val":   idx[train_end:val_end],
-                 "test":  idx[val_end:]}
+    splits    = {"train": idx[:train_end], "val": idx[train_end:val_end], "test": idx[val_end:]}
 
     scaler    = RobustScaler()
     n_ch      = X.shape[1]
@@ -155,13 +149,21 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     np.savez(paths["train"], X=X_tr, y=y[splits["train"]])
     np.savez(paths["val"],   X=X_va, y=y[splits["val"]])
     np.savez(paths["test"],  X=X_te, y=y[splits["test"]])
-    np.savez("scaler.npz",
-             mean=np.asarray(scaler.center_),
-             scale=np.asarray(scaler.scale_))
+    np.savez("scaler.npz", mean=np.asarray(scaler.center_), scale=np.asarray(scaler.scale_))
 
     return {s: np.load(p) for s, p in paths.items()}
 
 
+def calculate_macro_f1(cm):
+    f1s = []
+    for i in range(N_CLASSES):
+        tp = cm[i, i]
+        fp = cm[:, i].sum() - tp
+        fn = cm[i, :].sum() - tp
+        p  = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        r  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1s.append(2*p*r / (p+r) if (p+r) > 0 else 0.0)
+    return float(np.mean(f1s))
 
 def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
     print(f"\n--- Epoch {epoch_idx + 1}/{EPOCHS} ---")
@@ -180,7 +182,6 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
             tqdm.write(f"  Timeout waiting for SEND at window {i}")
             continue
 
-        # Send command + data + label
         ser.write(b"D")
         ser.flush()
         send_signal(ser, window)
@@ -216,16 +217,22 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
     final_f1  = calculate_macro_f1(running_cm)
     print(f"Epoch {epoch_idx+1} final -- Acc: {final_acc*100:.2f}%  F1: {final_f1:.4f}")
 
-# val pass
+
 def run_validation(ser, X_val, y_val):
     print("\nValidation pass...")
     ser.reset_input_buffer()
 
-
     ser.write(b"V")
     ser.flush()
 
-    for window, label in zip(X_val, y_val):
+    val_running_correct = 0
+    val_running_total = 0
+    val_running_cm = np.zeros((N_CLASSES, N_CLASSES), dtype=np.int64)
+
+    val_pbar = tqdm(enumerate(zip(X_val, y_val)), total=len(X_val),
+                    desc="Validating", unit="win", leave=False)
+
+    for i, (window, label) in val_pbar:
         if not wait_for_send(ser):
             continue
 
@@ -233,24 +240,28 @@ def run_validation(ser, X_val, y_val):
         ser.flush()
         send_signal(ser, window)
 
-        # U mode = infer only (no training), but still send label for loss
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
         one_hot[label] = 1
         ser.write(b"U")
         ser.write(one_hot.tobytes())
         ser.flush()
 
+        probs, pred_idx, status = wait_for_answer(ser)
 
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline:
-            line = readline(ser)
-            if line == "INFER":
-                break
+        if pred_idx >= 0:
+            val_running_total += 1
+            if pred_idx == int(label):
+                val_running_correct += 1
+            val_running_cm[int(label), pred_idx] += 1
 
-    # Send F to signal end of validation
+        val_f1 = calculate_macro_f1(val_running_cm)
+        val_acc = val_running_correct / val_running_total if val_running_total > 0 else 0.0
+
+        if val_running_total > 0:
+            val_pbar.set_postfix({"Val_Acc": f"{val_acc*100:.2f}%", "Val_F1": f"{val_f1:.4f}"})
+
     ser.write(b"F")
     ser.flush()
-
 
     val_lines = []
     deadline = time.monotonic() + 15.0
@@ -266,18 +277,6 @@ def run_validation(ser, X_val, y_val):
 
     return val_lines
 
-
-
-def calculate_macro_f1(cm):
-    f1s = []
-    for i in range(N_CLASSES):
-        tp = cm[i, i]
-        fp = cm[:, i].sum() - tp
-        fn = cm[i, :].sum() - tp
-        p  = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        r  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1s.append(2*p*r / (p+r) if (p+r) > 0 else 0.0)
-    return float(np.mean(f1s))
 
 def save_model(ser, filename="trained_weights.h"):
     print("Requesting model export...")
@@ -331,13 +330,12 @@ if __name__ == "__main__":
     print("Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
-    # handoshake
     arduino_ready = False
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
         line = readline(ser)
         if line == "READY":
-            ser.write(b"GO\n")
+            ser.write(b"G")
             ser.flush()
             arduino_ready = True
             print("Handshake complete!")
@@ -347,7 +345,6 @@ if __name__ == "__main__":
     if not arduino_ready:
         print("Arduino not responding.")
         f_csv.close(); ser.close(); exit()
-
 
     time.sleep(0.5)
     ser.reset_input_buffer()
@@ -361,7 +358,7 @@ if __name__ == "__main__":
             early_stopping_check(ser, val_lines)
 
             if val_loss_counter >= 5:
-                print("\nEarly stopping triggered.")
+                print("\nEarly stopping triggered. Model training stopped.")
                 break
 
     except KeyboardInterrupt:

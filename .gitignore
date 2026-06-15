@@ -53,10 +53,6 @@ thumbs.db
 
 # Other files
 compile_commands.json
-data/*
-dataset_rats/*
-dataset_rats_50w/*
-python_files/intanutil/
 load_intan_rhd_format.py
 intanutil/*
 python_files/load_intan_rhd_format.py
@@ -85,5 +81,14 @@ data2/
 softmax_csv_analysis/
 softmax_test_120.csv
 build/
+<<<<<<< HEAD
 
 splits/*.npz
+=======
+splits/
+data/*
+dataset_rats/
+dataset_rats_50w/
+dataset_rats_test/
+python_files/intanutil/
+>>>>>>> cf28135902694c6620b36a4624ff272c2caba9f5
