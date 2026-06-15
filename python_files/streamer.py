@@ -15,7 +15,7 @@ SEQ_LEN = 16
 CHUNK_SIZE = 256
 EPOCHS = 20
 SUBSAMPLE_RATE = 20
-RANDOM_SEED = 10
+RANDOM_SEED = 11
 
 minimum_val_loss = np.inf
 val_loss_counter = 0
