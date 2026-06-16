@@ -4,7 +4,7 @@ import serial
 import random
 import time
 import csv
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, StandardScaler
 from tqdm import tqdm
 
 PORT = "COM7"
@@ -82,6 +82,26 @@ def send_signal(ser, window):
     time.sleep(0.002)
 
 
+# def prepare_dataset(rms_data, angles_ds):
+#     rms_data = rms_data[:N_CHANNELS, :]
+#     X = rms_data.T
+
+#     y = np.full(len(angles_ds), 2, dtype=np.int64)
+#     y[angles_ds >  2.0] = 1   # plantar
+#     y[angles_ds < -2.0] = 0   # dorsi
+
+#     X_seq, y_seq = [], []
+#     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
+#         window_labels = y[i - SEQ_LEN:i]
+#         counts   = np.bincount(window_labels, minlength=3)
+#         majority = int(np.argmax(counts))
+#         if counts[majority] < SEQ_LEN * 0.6:
+#             continue
+#         X_seq.append(X[i - SEQ_LEN:i].T)
+#         y_seq.append(majority)
+
+#     return np.array(X_seq), np.array(y_seq)
+
 def prepare_dataset(rms_data, angles_ds):
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
@@ -92,15 +112,32 @@ def prepare_dataset(rms_data, angles_ds):
 
     X_seq, y_seq = [], []
     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
-        window_labels = y[i - SEQ_LEN:i]
-        counts   = np.bincount(window_labels, minlength=3)
-        majority = int(np.argmax(counts))
-        if counts[majority] < SEQ_LEN * 0.6:
-            continue
         X_seq.append(X[i - SEQ_LEN:i].T)
-        y_seq.append(majority)
+        y_seq.append(y[i])
 
     return np.array(X_seq), np.array(y_seq)
+# def prepare_dataset(rms_data, angles_ds): MAJORITY VOTING VERSION; YE TO BE TESTED
+#     rms_data = rms_data[:N_CHANNELS, :]
+#     X = rms_data.T
+
+#     y = np.full(len(angles_ds), 2, dtype=np.int64)  # Default: None (2)
+#     y[angles_ds >  2.0] = 1   # Plantar (1)
+#     y[angles_ds < -2.0] = 0   # Dorsi (0)
+
+#     X_seq, y_seq = [], []
+#     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
+#         window_labels = y[i - SEQ_LEN:i]
+
+
+#         counts = np.bincount(window_labels, minlength=3)
+
+#         # Find den klasse, der optræder flest gange (majoriteten)
+#         majority = int(np.argmax(counts))
+
+#         X_seq.append(X[i - SEQ_LEN:i].T)
+#         y_seq.append(majority)
+
+#     return np.array(X_seq), np.array(y_seq)
 
 def load_rat(path):
     data = np.load(path)
@@ -133,7 +170,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     val_end   = int(0.85 * len(idx))
     splits    = {"train": idx[:train_end], "val": idx[train_end:val_end], "test": idx[val_end:]}
 
-    scaler    = RobustScaler()
+    scaler    = StandardScaler() # or RobustScaler(), needs testing
     n_ch      = X.shape[1]
 
     def scale(idx_arr, fit=False):
