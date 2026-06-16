@@ -1,8 +1,3 @@
-"""
-Bayesian optimization of Mondrian Forest hyperparameters
-using Leave-One-Rat-Out (LORO) cross-validation.
-
-"""
 
 from pathlib import Path
 import numpy as np
