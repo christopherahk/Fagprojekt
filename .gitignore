@@ -65,6 +65,8 @@ softmax_csv_analysis/
 softmax_test_120.csv
 build/
 splits/
+splits_6rats/
+splits_finetune/
 data/*
 dataset_rats/
 dataset_rats_50w/

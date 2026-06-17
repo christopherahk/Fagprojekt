@@ -14,7 +14,7 @@ DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
 SEQ_LEN = 16
 CHUNK_SIZE = 256
-EPOCHS = 20
+EPOCHS = 100
 SUBSAMPLE_RATE = 1
 RANDOM_SEED = 10
 
@@ -152,7 +152,7 @@ def build_dataset(data_dir, rat_ids):
             y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
 
-def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED):
+def load_or_build_splits_first_shuffle(data_dir, rat_ids, out_dir="./splits_6rats", seed=RANDOM_SEED):
     os.makedirs(out_dir, exist_ok=True)
     paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
 
@@ -178,6 +178,34 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     for name, i in splits.items():
         np.savez(paths[name], X=X[i], y=y[i])
         print(f"{name}: {X[i].shape}")
+
+    return {s: np.load(p) for s, p in paths.items()}
+
+def load_or_build_splits(data_dir, rat_ids, out_dir="./splits_finetune"):
+    os.makedirs(out_dir, exist_ok=True)
+    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
+
+    if all(os.path.exists(p) for p in paths.values()):
+        print("Fine-tune splits already exist, loading")
+        return {s: np.load(p) for s, p in paths.items()}
+
+    print("Building fine-tuning dataset")
+    X, y = build_dataset(data_dir, rat_ids)
+    print(f"Total windows: {X.shape}")
+
+    n = len(X)
+    train_end = int(0.70 * n)
+    val_end = int(0.85 * n)
+
+    splits = {
+        "train": np.arange(0, train_end),
+        "val": np.arange(train_end, val_end),
+        "test": np.arange(val_end, n),
+    }
+
+    for name, i in splits.items():
+        np.savez(paths[name], X=X[i], y=y[i])
+        print(f"Fine-tune {name}: {X[i].shape}")
 
     return {s: np.load(p) for s, p in paths.items()}
 
@@ -242,15 +270,15 @@ def early_stopping(ser, lines):
             if val_loss < minimum_val_loss:
                 minimum_val_loss = val_loss
                 val_loss_counter = 0
-                save_model_to_file(ser, "trained_weights.h")
+                save_model_to_file(ser, "cpp_part/trained_weights.h")
             else:
                 val_loss_counter += 1
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats"
-    rat_ids = list(range(4, 10))
+    rat_ids = [10]
 
-    splits = load_or_build_splits(data_dir, rat_ids)
+    splits = load_or_build_splits_first_shuffle(data_dir, rat_ids)
     X_train, y_train = splits["train"]["X"], splits["train"]["y"]
     X_val, y_val = splits["val"]["X"], splits["val"]["y"]
     X_test, y_test = splits["test"]["X"], splits["test"]["y"]

@@ -22,7 +22,6 @@ void ReLU::backward(const Tensor &dValues) {
 
 void Sigmoid::forward(Tensor &inputs_) {
   inputs = inputs_;
-
   auto sigmodFunc = [](float x) -> float { return 1.0f / (1.0f + expf(-x)); };
   inputs_.apply(sigmodFunc);
   output = inputs_;
@@ -30,18 +29,16 @@ void Sigmoid::forward(Tensor &inputs_) {
 
 void Sigmoid::backward(const Tensor &dValues) {
   dInputs = dValues;
-
   for (int r = 0; r < dValues.rowCount; r++) {
     for (int c = 0; c < dValues.colCount; c++) {
       float sigmoid = 1.0f / (1.0f + expf(-inputs(r, c)));
-      dInputs(r, c) = sigmoid * (1 - sigmoid);
+      dInputs(r, c) = dValues(r, c) * sigmoid * (1.0f - sigmoid);
     }
   }
 }
 
 void Softmax::forward(const Tensor &inputs) {
   output = Tensor(inputs.rowCount, inputs.colCount);
-
   for (int r = 0; r < inputs.rowCount; r++) {
     float rowMax = inputs(r, 0);
     for (int c = 1; c < inputs.colCount; c++) {
@@ -49,18 +46,15 @@ void Softmax::forward(const Tensor &inputs) {
         rowMax = inputs(r, c);
       }
     }
-
     float rowCountum = 0.0f;
     for (int c = 0; c < inputs.colCount; c++) {
       float e = expf(inputs(r, c) - rowMax);
       output(r, c) = e;
       rowCountum += e;
     }
-
     if (rowCountum < 1e-12f) {
       rowCountum = 1e-12f;
     }
-
     for (int c = 0; c < inputs.colCount; c++) {
       output(r, c) /= rowCountum;
     }

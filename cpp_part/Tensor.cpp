@@ -44,12 +44,13 @@ Tensor &Tensor::operator*=(float scalar) {
 
 Tensor &Tensor::operator=(const Tensor &other) {
   if (this != &other) {
+    float *newData = new float[other.size];
+    std::copy(other.data, other.data + other.size, newData);
     delete[] data;
+    data = newData;
     rowCount = other.rowCount;
     colCount = other.colCount;
     size = other.size;
-    data = new float[size];
-    std::copy(other.data, other.data + size, data);
   }
   return *this;
 }
@@ -75,7 +76,6 @@ Tensor &Tensor::matmul(const Tensor &other) {
   for (int i = 0; i < rowCount; i++) {
     for (int k = 0; k < colCount; k++) {
       float a = (*this)(i, k);
-
       for (int j = 0; j < other.colCount; j++) {
         C(i, j) += a * other(k, j);
       }
@@ -115,7 +115,6 @@ Tensor Tensor::sumCols() const {
   Tensor C(1, colCount);
   for (int c = 0; c < colCount; c++) {
     float sum = 0.0f;
-
     for (int r = 0; r < rowCount; r++)
       sum += (*this)(r, c);
     C(0, c) = sum;
@@ -172,7 +171,6 @@ int Tensor::argmaxRow(int row) const {
 void Tensor::apply(float (*func)(float)) {
   if (func == nullptr)
     return;
-
   for (int i = 0; i < size; i++) {
     data[i] = func(data[i]);
   }

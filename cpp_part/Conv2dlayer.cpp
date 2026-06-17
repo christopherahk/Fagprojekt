@@ -26,33 +26,26 @@ static void ensureTensorShape(Tensor &t, int rows, int cols) {
   }
 }
 
-static void ensureTensorShapeZero(Tensor &t, int rows, int cols) {
-  if (t.rowCount != rows || t.colCount != cols) {
-    t = Tensor(rows, cols);
-    memset(t.data, 0, t.size * sizeof(float));
-  }
-}
-
 static inline int inIdx(int h, int w, int inW) { return h * inW + w; }
-
-static inline int outIdx(int outCh, int oh, int ow, int outW) {
-  return outCh * outW + oh * outW + ow;
-}
-
-static inline int wIdx(int outCh, int kh, int kw, int kernelW) {
-  return outCh * (/* kernelH * */ kernelW) + kh * kernelW + kw;
-}
 
 Conv2DLayer::Conv2DLayer(int inH_, int inW_, int outChannels_, int kernelH_,
                          int kernelW_, int strideH_, int strideW_, int padH_,
                          int padW_)
     : weights(outChannels_, kernelH_ * kernelW_), biases(1, outChannels_),
-      inputs(nullptr), output(), dWeights(), dBiases(), dInputs(), mWeights(),
-      vWeights(), mBiases(), vBiases(), adamT(0), inH(inH_), inW(inW_),
+      inputs(nullptr), output(), dWeights(), dBiases(), dInputs(),
+      mWeights(outChannels_, kernelH_ * kernelW_),
+      vWeights(outChannels_, kernelH_ * kernelW_), mBiases(1, outChannels_),
+      vBiases(1, outChannels_), adamT(0), inH(inH_), inW(inW_),
       outChannels(outChannels_), kernelH(kernelH_), kernelW(kernelW_),
       strideH(strideH_), strideW(strideW_), padH(padH_), padW(padW_),
       outH((inH_ + 2 * padH_ - kernelH_) / strideH_ + 1),
       outW((inW_ + 2 * padW_ - kernelW_) / strideW_ + 1) {
+
+  memset(mWeights.data, 0, mWeights.size * sizeof(float));
+  memset(vWeights.data, 0, vWeights.size * sizeof(float));
+  memset(mBiases.data, 0, mBiases.size * sizeof(float));
+  memset(vBiases.data, 0, vBiases.size * sizeof(float));
+
   float heStd = sqrtf(2.0f / (kernelH_ * kernelW_ * inH_));
   for (int i = 0; i < weights.size; i++) {
     float u1 = (random(1, 100001)) / 100000.0f;
@@ -82,14 +75,13 @@ void Conv2DLayer::forward(const Tensor &x) {
           for (int kw = 0; kw < kernelW; kw++) {
             int iw = ow * strideW + kw - padW;
             if (iw < 0 || iw >= inW)
-              continue; // zero-padding
+              continue;
 
             sum +=
                 x.data[inIdx(ih, iw, inW)] *
                 weights.data[outCh * (kernelH * kernelW) + kh * kernelW + kw];
           }
         }
-
         output.data[outCh * (outH * outW) + oh * outW + ow] = sum;
       }
     }
@@ -134,7 +126,6 @@ void Conv2DLayer::backward(const Tensor &dValues, bool computeDInputs_) {
         }
       }
     }
-
     dBiases.data[outCh] += biasGrad;
   }
 
@@ -168,11 +159,6 @@ void Conv2DLayer::backward(const Tensor &dValues, bool computeDInputs_) {
 }
 
 void Conv2DLayer::update(float learningRate) {
-  ensureTensorShapeZero(mWeights, outChannels, kernelH * kernelW);
-  ensureTensorShapeZero(vWeights, outChannels, kernelH * kernelW);
-  ensureTensorShapeZero(mBiases, 1, outChannels);
-  ensureTensorShapeZero(vBiases, 1, outChannels);
-
   adamT++;
   float bc1 = 1.0f - powf(kAdamBeta1, (float)adamT);
   float bc2 = 1.0f - powf(kAdamBeta2, (float)adamT);
