@@ -9,7 +9,7 @@ and bayesian_opt.py.
 import os
 import numpy as np
 from pathlib import Path
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 try:
     from streamer import load_rat, prepare_dataset, N_CHANNELS, SEQ_LEN
@@ -99,7 +99,7 @@ def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
 
         # Scale using ONLY training rats
         n_ch    = X_train_raw.shape[1]
-        scaler  = RobustScaler()
+        scaler  = MinMaxScaler()
 
         X_tr_2d = X_train_raw.transpose(0, 2, 1).reshape(-1, n_ch)
         X_tr_2d = scaler.fit_transform(X_tr_2d)
@@ -116,7 +116,7 @@ def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
         np.savez(fold_dir / "train.npz", X=X_train, y=y_train)
         np.savez(fold_dir / "val.npz",   X=X_val,   y=y_val)
         np.savez(fold_dir / "scaler.npz",
-                 mean=np.asarray(scaler.center_),
+                 mean=np.asarray(scaler.min_),
                  scale=np.asarray(scaler.scale_))
 
         print(f"  Fold rat_{test_rat}: "

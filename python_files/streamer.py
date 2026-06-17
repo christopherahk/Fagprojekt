@@ -4,7 +4,7 @@ import serial
 import random
 import time
 import csv
-from sklearn.preprocessing import RobustScaler, StandardScaler
+from sklearn.preprocessing import RobustScaler, StandardScaler, MinMaxScaler
 from tqdm import tqdm
 
 PORT = "COM7"
@@ -14,7 +14,7 @@ DOWNSAMPLE_FACTOR = 50
 N_CHANNELS        = 56
 SEQ_LEN           = 16 # from 32
 CHUNK_SIZE        = 256
-EPOCHS            = 30
+EPOCHS            = 1 # mondrian is a one-pass
 SUBSAMPLE_RATE    = 8 # from 10
 RANDOM_SEED       = 10
 
@@ -134,6 +134,12 @@ def prepare_dataset(rms_data, angles_ds): # majority voting
 
         majority = int(np.argmax(counts))
 
+        if counts[majority] < (SEQ_LEN * 0.6):
+            continue
+
+        if majority == 2 and counts[2] < (SEQ_LEN * 0.4):
+            continue
+
         X_seq.append(X[i - SEQ_LEN:i].T)
         y_seq.append(majority)
 
@@ -153,40 +159,47 @@ def build_dataset(data_dir, rat_ids):
             X_all.append(X); y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
 
-def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED):
+def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits", seed=RANDOM_SEED):
     os.makedirs(out_dir, exist_ok=True)
-    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
+    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "live")}
 
     if all(os.path.exists(p) for p in paths.values()):
-        print("Splits already exist, loading")
+        print("Splits already exist, loading...")
         return {s: np.load(p) for s, p in paths.items()}
 
-    print("Building dataset...")
-    X, y = build_dataset(data_dir, rat_ids)
+    print("Building Pretrain dataset (Rats 4-9)...")
+    X_base, y_base = build_dataset(data_dir, pretrain_rats)
 
-    rng       = np.random.default_rng(seed)
-    idx       = rng.permutation(len(X))
-    train_end = int(0.70 * len(idx))
-    val_end   = int(0.85 * len(idx))
-    splits    = {"train": idx[:train_end], "val": idx[train_end:val_end], "test": idx[val_end:]}
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(len(X_base))
+    train_end = int(0.85 * len(idx)) # 85% train, 15% val
 
-    scaler    = RobustScaler() # or RobustScaler(), needs testing
-    n_ch      = X.shape[1]
+    splits = {
+        "train": idx[:train_end],
+        "val": idx[train_end:]
+    }
 
-    def scale(idx_arr, fit=False):
-        raw  = X[idx_arr]
-        flat = raw.transpose(0, 2, 1).reshape(-1, n_ch)
+    print("Building Live dataset (Rat 10)...")
+    X_live, y_live = build_dataset(data_dir, live_rats)
+
+
+    scaler = MinMaxScaler()
+    n_ch = X_base.shape[1]
+
+    def scale_data(raw_data, fit=False):
+        flat = raw_data.transpose(0, 2, 1).reshape(-1, n_ch)
         flat = scaler.fit_transform(flat) if fit else scaler.transform(flat)
-        return flat.reshape(raw.shape[0], raw.shape[2], n_ch).transpose(0, 2, 1)
+        return flat.reshape(raw_data.shape[0], raw_data.shape[2], n_ch).transpose(0, 2, 1)
 
-    X_tr = scale(splits["train"], fit=True)
-    X_va = scale(splits["val"])
-    X_te = scale(splits["test"])
+    X_tr = scale_data(X_base[splits["train"]], fit=True)
+    X_va = scale_data(X_base[splits["val"]], fit=False)
+    X_li = scale_data(X_live, fit=False)
 
-    np.savez(paths["train"], X=X_tr, y=y[splits["train"]])
-    np.savez(paths["val"],   X=X_va, y=y[splits["val"]])
-    np.savez(paths["test"],  X=X_te, y=y[splits["test"]])
-    np.savez("scaler.npz", mean=np.asarray(scaler.center_), scale=np.asarray(scaler.scale_)) # use center_ for robust scaler, mean_ for standard scaler
+    np.savez(paths["train"], X=X_tr, y=y_base[splits["train"]])
+    np.savez(paths["val"],   X=X_va, y=y_base[splits["val"]])
+
+    np.savez(paths["live"],  X=X_li, y=y_live)
+    np.savez("scaler.npz", mean=np.asarray(scaler.min_), scale=np.asarray(scaler.scale_))
 
     return {s: np.load(p) for s, p in paths.items()}
 
@@ -347,16 +360,99 @@ def early_stopping_check(ser, val_lines):
                 pass
 
 
+def stream_live(ser, windows, labels, csv_writer):
+    print(f"\n--- STARTING LIVE ONLINE LEARNING (Chronological) ---")
+    combined = list(zip(windows, labels))
+
+
+    running_correct = 0
+    running_total   = 0
+    running_cm      = np.zeros((N_CLASSES, N_CLASSES), dtype=np.int64)
+
+    pbar = tqdm(enumerate(combined), total=len(combined), desc="Live Streaming", unit="win")
+
+    for i, (window, label) in pbar:
+        if not wait_for_send(ser):
+            tqdm.write(f"  Timeout waiting for SEND at window {i}")
+            continue
+
+        ser.write(b"D")
+        ser.flush()
+        send_signal(ser, window)
+
+        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+        one_hot[label] = 1
+        ser.write(b"L")
+        ser.write(one_hot.tobytes())
+        ser.flush()
+
+        probs, pred_idx, status = wait_for_answer(ser)
+        CONFIDENCE_THRESHOLD = 0.45
+
+
+        confidence = float(np.max(probs)) if probs is not None else 0.0
+        if probs is not None and len(probs) == 3:
+            weights = np.array([1, 1, 1])
+            weighted_probs = probs * weights
+
+
+            pred_idx = int(np.argmax(weighted_probs))
+
+
+            confidence = float(np.max(probs))
+        else:
+            confidence = 0.0
+
+        if pred_idx >= 0:
+            running_total += 1
+            if pred_idx == int(label):
+                running_correct += 1
+            running_cm[int(label), pred_idx] += 1
+        # if probs is not None:
+        #     confidence = float(np.max(probs))
+
+        #     if confidence < CONFIDENCE_THRESHOLD:
+        #         pred_idx = -1
+        # else:
+        #     confidence = 0.0
+
+        # if pred_idx >= 0:
+        #     running_total += 1
+        #     if pred_idx == int(label):
+        #         running_correct += 1
+        #     running_cm[int(label), pred_idx] += 1
+
+        f1 = calculate_macro_f1(running_cm)
+        acc = running_correct / running_total if running_total > 0 else 0.0
+
+
+        csv_writer.writerow([
+            "LIVE", i, int(label), pred_idx,
+            f"{confidence:.4f}", running_correct, running_total,
+            f"{acc:.6f}", f"{f1:.6f}", status,
+        ])
+
+        if running_total > 0:
+            pbar.set_postfix({"Live_Acc": f"{acc*100:.2f}%", "Live_F1": f"{f1:.4f}"})
+
+    final_acc = running_correct / running_total if running_total > 0 else 0.0
+    final_f1  = calculate_macro_f1(running_cm)
+    print(f"\nLive Streaming Finished -- Final Acc: {final_acc*100:.2f}%  Final F1: {final_f1:.4f}")
+
+
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-    rat_ids  = list(range(4, 10))
+    PRETRAIN_RATS = [9]
+    LIVE_RAT      = [10]
 
-    splits   = load_or_build_splits(data_dir, rat_ids)
+    splits   = load_or_build_splits(data_dir, PRETRAIN_RATS, LIVE_RAT)
     X_train  = splits["train"]["X"]
     y_train  = splits["train"]["y"]
     X_val    = splits["val"]["X"]
     y_val    = splits["val"]["y"]
+    X_live   = splits["live"]["X"]
+    y_live   = splits["live"]["y"]
 
     f_csv   = open("training_accuracy.csv", "w", newline="", encoding="utf-8")
     writer  = csv.writer(f_csv)
@@ -386,20 +482,38 @@ if __name__ == "__main__":
     time.sleep(0.5)
     ser.reset_input_buffer()
 
+
     try:
-        for epoch in range(EPOCHS):
-            stream_epoch(ser, epoch, X_train, y_train, writer)
-            f_csv.flush()
 
-            val_lines = run_validation(ser, X_val, y_val)
-            early_stopping_check(ser, val_lines)
-
-            if val_loss_counter >= 5:
-                print("\nEarly stopping triggered. Model training stopped.")
-                break
+        print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
+        # Her streamer vi kronologisk til en HELT BLANK model!
+        stream_live(ser, X_live, y_live, writer)
+        f_csv.flush()
 
     except KeyboardInterrupt:
         print("\nInterrupted.")
+
+
+    # try:
+    #     print("\n=== PHASE 1: PRETRAIN ON RATS 4-9 ===")
+    #     for epoch in range(EPOCHS):
+    #         stream_epoch(ser, epoch, X_train, y_train, writer)
+    #         f_csv.flush()
+
+    #         val_lines = run_validation(ser, X_val, y_val)
+    #         early_stopping_check(ser, val_lines)
+
+    #         if val_loss_counter >= 5:
+    #             print("\nEarly stopping triggered. Model pretraining stopped.")
+    #             break
+
+    #     print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
+
+    #     stream_live(ser, X_live, y_live, writer)
+    #     f_csv.flush()
+
+    # except KeyboardInterrupt:
+    #     print("\nInterrupted.")
 
     f_csv.close()
     ser.close()
