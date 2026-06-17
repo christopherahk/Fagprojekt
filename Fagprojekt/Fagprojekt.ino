@@ -1,16 +1,17 @@
 #include "FeatureExtractor.h"
 
 #define MF_LAMBDA 6.0f
-#define MF_N_TREES 18
-#define MF_MAX_NODES 127
+#define MF_N_TREES 15
+#define MF_MAX_NODES 255
 #include "MondrianForest.h"
 #include <Arduino.h>
 
 const int N_CHANNELS = 56;
-const int WINDOW = 32;
+const int WINDOW = 16;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * WINDOW;
-const int N_FEATURES = N_CHANNELS * (N_RBI_BINS + WINDOW / 2 + 1);
+// N_FEATURES: 56 channels * 10 local + 2 global
+const int N_FEATURES = (N_CHANNELS * (N_RBI_BINS + 2)) + 2;
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 256;
 
@@ -53,7 +54,7 @@ int readLabel() {
     if (millis() - s > 2000)
       return -1;
   }
-  char modeByte = Serial.read();
+  char modeByte = Serial.read(); // reads L byte from streamer
 
   int label[N_CLASSES];
   for (int i = 0; i < N_CLASSES; i++) {
@@ -95,17 +96,15 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
       val_correct++;
   }
 
-  if (!doValidate) {
-    Serial.print("Probs: ");
-    for (int i = 0; i < N_CLASSES; i++) {
-      Serial.print(proba[i], 4);
-      if (i < N_CLASSES - 1)
-        Serial.print(", ");
-    }
-    Serial.println();
-    Serial.print("Pred: ");
-    Serial.println(CLASS_NAMES[pred]);
+  Serial.print("Probs: ");
+  for (int i = 0; i < N_CLASSES; i++) {
+    Serial.print(proba[i], 4);
+    if (i < N_CLASSES - 1)
+      Serial.print(", ");
   }
+  Serial.println();
+  Serial.print("Pred: ");
+  Serial.println(CLASS_NAMES[pred]);
 }
 
 void setup() {

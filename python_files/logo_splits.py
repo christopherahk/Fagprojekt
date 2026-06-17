@@ -12,7 +12,7 @@ from pathlib import Path
 from sklearn.preprocessing import RobustScaler
 
 try:
-    from streamer import load_rat, prepare_dataset, N_CHANNELS
+    from streamer import load_rat, prepare_dataset, N_CHANNELS, SEQ_LEN
 except ImportError:
     raise ImportError("Place this file next to streamer.py")
 
@@ -21,19 +21,50 @@ RAT_IDS  = list(range(4, 11))
 OUT_DIR  = Path("./splits_logo")
 
 
-def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
+def extract_features_offline(X_seq, window_size=16, n_rbi_bins=8):
     """
-    For each rat r in rat_ids:
-      - Train: all other rats, scaled using only their data
-      - Val:   rat r, transformed with the training scaler
+    Python equivalent of the C++ extractFeatures() function.
+    Transforms raw (samples, channels, window_size) into (samples, 562 features).
+    """
+    n_samples = X_seq.shape[0]
+    # X_seq er allerede (samples, channels, time), f.eks. (N, 56, 16)
 
-    Saves to out_dir/rat_{r}/train.npz and val.npz
-    Also saves the scaler for each fold to scaler_rat_{r}.npz
-    """
+    bin_size = window_size // n_rbi_bins
+
+    # RBI Bins (samples, channels, bins)
+    reshaped_for_bins = X_seq.reshape(n_samples, N_CHANNELS, n_rbi_bins, bin_size)
+    rbi_sums = np.sum(np.abs(reshaped_for_bins), axis=3)
+    rbi_features = np.log1p(rbi_sums)
+
+    # local stats (samples, channels, 1)
+    ch_means = np.mean(np.abs(X_seq), axis=2, keepdims=True)
+    ch_maxs = np.max(np.abs(X_seq), axis=2, keepdims=True)
+    local_mean_features = np.log1p(ch_means)
+    local_max_features = np.log1p(ch_maxs)
+
+    # concatenate local features per channel: (samples, channels, 10)
+    local_features = np.concatenate([rbi_features, local_mean_features, local_max_features], axis=2)
+    # Flatten local features: (samples, 560)
+    flat_local = local_features.reshape(n_samples, -1)
+
+    # global spatial stats (samples, 1)
+    global_mean = np.mean(ch_means.squeeze(axis=2), axis=1, keepdims=True)
+    global_max = np.max(ch_means.squeeze(axis=2), axis=1, keepdims=True)
+    spatial_variance = global_max - global_mean
+
+    global_mean_features = np.log1p(global_mean)
+    spatial_var_features = np.log1p(spatial_variance)
+
+
+    final_features = np.concatenate([flat_local, global_mean_features, spatial_var_features], axis=1)
+
+    return final_features
+
+
+def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load all rats
     all_X, all_y, all_groups = [], [], []
     for r in rat_ids:
         path = Path(data_dir) / f"rat{r}.npz"
@@ -97,7 +128,6 @@ def build_logo_splits(data_dir=DATA_DIR, rat_ids=RAT_IDS, out_dir=OUT_DIR):
 
 
 def load_logo_split(test_rat: int, splits_dir=OUT_DIR):
-    """Load a pre-built LOGO fold."""
     fold_dir = Path(splits_dir) / f"rat_{test_rat}"
     if not (fold_dir / "train.npz").exists():
         raise FileNotFoundError(
@@ -109,7 +139,6 @@ def load_logo_split(test_rat: int, splits_dir=OUT_DIR):
 
 
 def logo_summary(splits_dir=OUT_DIR):
-    """Print accuracy summary across all LOGO folds (for offline RF)."""
     from sklearn.ensemble import ExtraTreesClassifier
 
     scores = {}
@@ -119,12 +148,16 @@ def logo_summary(splits_dir=OUT_DIR):
         except FileNotFoundError:
             continue
 
+
+        X_tr_features = extract_features_offline(X_tr, window_size=SEQ_LEN)
+        X_val_features = extract_features_offline(X_val, window_size=SEQ_LEN)
+
         clf = ExtraTreesClassifier(
-            n_estimators=24, max_depth=5,
+            n_estimators=15, max_depth=12,
             max_features=0.4, random_state=42, n_jobs=-1
         )
-        clf.fit(X_tr.reshape(len(X_tr), -1), y_tr)
-        acc = (clf.predict(X_val.reshape(len(X_val), -1)) == y_val).mean()
+        clf.fit(X_tr_features, y_tr)
+        acc = (clf.predict(X_val_features) == y_val).mean()
         scores[test_rat] = acc
         print(f"  Rat {test_rat} (test): {acc:.4f}")
 
@@ -138,5 +171,5 @@ if __name__ == "__main__":
     print("Building LOGO splits...")
     build_logo_splits()
 
-    print("\nOffline ExtraTrees baseline per fold:")
+    print("\nOffline ExtraTrees baseline per fold (with C++ equivalent features):")
     logo_summary()

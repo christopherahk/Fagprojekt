@@ -5,19 +5,19 @@
 // Mondrian Forest -- online random forest
 
 #ifndef MF_N_TREES
-#define MF_N_TREES 18 // ensemble size
+#define MF_N_TREES 15 // Safe RAM ensemble size
 #endif
 #ifndef MF_MAX_NODES
-#define MF_MAX_NODES 127 // depth-5 full binary tree: 2^7 - 1
+#define MF_MAX_NODES 255 // Safe RAM depth (2^8 - 1)
 #endif
 #ifndef MF_N_FEATURES
-#define MF_N_FEATURES 1176 // 56 * (4 RBI + 17 FFT)
+#define MF_N_FEATURES 562 // 56 * 10 (local) + 2 (global)
 #endif
 #ifndef MF_N_CLASSES
 #define MF_N_CLASSES 3
 #endif
+
 // Mondrian budget: controls max tree depth
-// Higher = deeper trees
 #ifndef MF_LAMBDA
 #define MF_LAMBDA 5.0f
 #endif
@@ -46,9 +46,9 @@ static inline float mf_rand_exp(float rate) {
 }
 
 struct MFNode {
-  int16_t splitDim; // feature index, -1 = unsplit leaf
+  int16_t splitDim;
   float splitThreshold;
-  float tau; // Mondrian split time
+  float tau;
   int16_t left, right, parent;
   float classCounts[MF_N_CLASSES];
   float nSamples;
@@ -57,7 +57,6 @@ struct MFNode {
 struct MFTree {
   MFNode nodes[MF_MAX_NODES];
   int16_t nNodes;
-  // Feature bounding box at root level (Q8.8 to save memory)
   int16_t fMin[MF_N_FEATURES];
   int16_t fMax[MF_N_FEATURES];
 };
@@ -77,7 +76,6 @@ public:
 
   void train(const float *features, int label) {
     for (int t = 0; t < MF_N_TREES; t++) {
-      // different seed per tree per sample for diversity
       mf_seed((uint32_t)(t * 1664525u ^ totalSamples_ * 22695477u));
       updateRanges(t, features);
       updateTree(t, 0, features, label, 0.0f);
@@ -155,15 +153,12 @@ private:
     MFTree &tree = trees_[t];
     MFNode &node = tree.nodes[nodeIdx];
 
-    // update class counts on the path
     node.classCounts[label] += 1.0f;
     node.nSamples += 1.0f;
 
     if (node.splitDim < 0) {
-
       trySplit(t, nodeIdx, features, label, parentTau);
     } else {
-
       int next = features[node.splitDim] <= node.splitThreshold ? node.left
                                                                 : node.right;
       updateTree(t, next, features, label, node.tau);
@@ -188,12 +183,10 @@ private:
     if (totalExt < 1e-6f)
       return;
 
-    // sample split time, only split if within budget
     float splitTime = parentTau + mf_rand_exp(totalExt);
     if (splitTime > MF_LAMBDA)
       return;
 
-    // choose split dimension proportional to extension
     float u = mf_rand() * totalExt;
     int splitDim = 0;
     float cumExt = 0.0f;
@@ -212,7 +205,6 @@ private:
       }
     }
 
-    // threshold, uniformly in the extension region
     float lo = mf_fromQ88(tree.fMin[splitDim]);
     float hi = mf_fromQ88(tree.fMax[splitDim]);
     float ext = 0.0f;
@@ -227,13 +219,11 @@ private:
       threshold = lo + mf_rand() * (hi - lo);
     }
 
-    // allocate children
     int leftIdx = allocNode(t, leafIdx);
     int rightIdx = allocNode(t, leafIdx);
     if (leftIdx < 0 || rightIdx < 0)
       return;
 
-    // distribute existing counts to children
     MFNode &leaf = tree.nodes[leafIdx];
     for (int c = 0; c < MF_N_CLASSES; c++) {
       float newCount = (c == label) ? 1.0f : 0.0f;
@@ -260,7 +250,6 @@ private:
       tree.nodes[leftIdx].nSamples = oldN;
     }
 
-    // convert leaf to internal node
     leaf.splitDim = (int16_t)splitDim;
     leaf.splitThreshold = threshold;
     leaf.tau = splitTime;

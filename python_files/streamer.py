@@ -12,10 +12,10 @@ BAUD = 1000000
 
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS        = 56
-SEQ_LEN           = 32
+SEQ_LEN           = 16 # from 32
 CHUNK_SIZE        = 256
 EPOCHS            = 30
-SUBSAMPLE_RATE    = 10
+SUBSAMPLE_RATE    = 8 # from 10
 RANDOM_SEED       = 10
 
 N_CLASSES = 3
@@ -82,7 +82,7 @@ def send_signal(ser, window):
     time.sleep(0.002)
 
 
-# def prepare_dataset(rms_data, angles_ds):
+# def prepare_dataset(rms_data, angles_ds): # HARD limit version, not to great, reduces sample count by too much
 #     rms_data = rms_data[:N_CHANNELS, :]
 #     X = rms_data.T
 
@@ -102,42 +102,42 @@ def send_signal(ser, window):
 
 #     return np.array(X_seq), np.array(y_seq)
 
-def prepare_dataset(rms_data, angles_ds):
-    rms_data = rms_data[:N_CHANNELS, :]
-    X = rms_data.T
-
-    y = np.full(len(angles_ds), 2, dtype=np.int64)
-    y[angles_ds >  2.0] = 1   # plantar
-    y[angles_ds < -2.0] = 0   # dorsi
-
-    X_seq, y_seq = [], []
-    for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
-        X_seq.append(X[i - SEQ_LEN:i].T)
-        y_seq.append(y[i])
-
-    return np.array(X_seq), np.array(y_seq)
-# def prepare_dataset(rms_data, angles_ds): MAJORITY VOTING VERSION; YE TO BE TESTED
+# def prepare_dataset(rms_data, angles_ds):
 #     rms_data = rms_data[:N_CHANNELS, :]
 #     X = rms_data.T
 
-#     y = np.full(len(angles_ds), 2, dtype=np.int64)  # Default: None (2)
-#     y[angles_ds >  2.0] = 1   # Plantar (1)
-#     y[angles_ds < -2.0] = 0   # Dorsi (0)
+#     y = np.full(len(angles_ds), 2, dtype=np.int64)
+#     y[angles_ds >  2.0] = 1   # plantar
+#     y[angles_ds < -2.0] = 0   # dorsi
 
 #     X_seq, y_seq = [], []
 #     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
-#         window_labels = y[i - SEQ_LEN:i]
-
-
-#         counts = np.bincount(window_labels, minlength=3)
-
-#         # Find den klasse, der optræder flest gange (majoriteten)
-#         majority = int(np.argmax(counts))
-
 #         X_seq.append(X[i - SEQ_LEN:i].T)
-#         y_seq.append(majority)
+#         y_seq.append(y[i])
 
 #     return np.array(X_seq), np.array(y_seq)
+
+
+def prepare_dataset(rms_data, angles_ds): # majority voting
+    rms_data = rms_data[:N_CHANNELS, :]
+    X = rms_data.T
+
+    y = np.full(len(angles_ds), 2, dtype=np.int64)  # Default: None (2)
+    y[angles_ds >  2.0] = 1   # Plantar (1)
+    y[angles_ds < -2.0] = 0   # Dorsi (0)
+
+    X_seq, y_seq = [], []
+    for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
+        window_labels = y[i - SEQ_LEN:i]
+
+        counts = np.bincount(window_labels, minlength=3)
+
+        majority = int(np.argmax(counts))
+
+        X_seq.append(X[i - SEQ_LEN:i].T)
+        y_seq.append(majority)
+
+    return np.array(X_seq), np.array(y_seq)
 
 def load_rat(path):
     data = np.load(path)
@@ -170,7 +170,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     val_end   = int(0.85 * len(idx))
     splits    = {"train": idx[:train_end], "val": idx[train_end:val_end], "test": idx[val_end:]}
 
-    scaler    = StandardScaler() # or RobustScaler(), needs testing
+    scaler    = RobustScaler() # or RobustScaler(), needs testing
     n_ch      = X.shape[1]
 
     def scale(idx_arr, fit=False):
@@ -186,7 +186,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
     np.savez(paths["train"], X=X_tr, y=y[splits["train"]])
     np.savez(paths["val"],   X=X_va, y=y[splits["val"]])
     np.savez(paths["test"],  X=X_te, y=y[splits["test"]])
-    np.savez("scaler.npz", mean=np.asarray(scaler.center_), scale=np.asarray(scaler.scale_))
+    np.savez("scaler.npz", mean=np.asarray(scaler.center_), scale=np.asarray(scaler.scale_)) # use center_ for robust scaler, mean_ for standard scaler
 
     return {s: np.load(p) for s, p in paths.items()}
 
@@ -279,7 +279,7 @@ def run_validation(ser, X_val, y_val):
 
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
         one_hot[label] = 1
-        ser.write(b"U")
+        ser.write(b"L")
         ser.write(one_hot.tobytes())
         ser.flush()
 

@@ -9,7 +9,8 @@ data_folder = "./data"
 RATS = list(range(4, 11))
 
 WINDOW = int(0.05 * 30_000)
-
+output_dir = "./dataset_rats_50w"
+os.makedirs(output_dir, exist_ok=True)
 
 def get_files(rat):
     part1 = f"{rat}_DORSI_PLANTAR_PART1"
@@ -113,13 +114,19 @@ def process_rat(rat):
 
     angles_ds = f(times_ds)
 
+    output_dir = "./dataset_rats_50w"
+    os.makedirs(output_dir, exist_ok=True)
+
+
+    rat_id_clean = rat.lower().replace("rat", "") # Sætter "RAT4" til "4"
+    output_path = f"{output_dir}/rat{rat_id_clean}.npz"
+
     np.savez(
-        f"dataset_rats_test/{rat}.npz",
-        t=times_ds,
-        a=angles_ds,
-        rms_data=rms_data,
-        split_idx=split_idx
-    )
+    output_path,
+    t=times_ds,
+    a=angles_ds,
+    rms_data=rms_data,
+    split_idx=split_idx)
 
 
 if __name__ == "__main__":
