@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import decimate
 from utils import read_rhd
+from sklearn.preprocessing import StandardScaler
 import os
 import serial
 import random
@@ -14,8 +15,8 @@ N_CHANNELS = 56
 SEQ_LEN = 16
 CHUNK_SIZE = 256
 EPOCHS = 20
-SUBSAMPLE_RATE = 20
-RANDOM_SEED = 11
+SUBSAMPLE_RATE = 1
+RANDOM_SEED = 10
 
 minimum_val_loss = np.inf
 val_loss_counter = 0
@@ -89,7 +90,7 @@ def save_model_to_file(ser, filename="cpp_part/trained_weights.h"):
     ser.write(b'R')
     ser.flush()
 
-def stream_epoch(ser, epoch_idx, windows, labels, first_send_consumed=False):
+def stream_epoch(ser, epoch_idx, windows, labels, scaler, first_send_consumed=False):
     print(f"Starting Epoch {epoch_idx + 1}/{EPOCHS}")
     combined = list(zip(windows, labels))
     random.shuffle(combined)
@@ -102,7 +103,8 @@ def stream_epoch(ser, epoch_idx, windows, labels, first_send_consumed=False):
             while trigger != "SEND":
                 trigger = readline(ser).strip()
 
-        data_bytes = window.astype(np.float32).tobytes()
+        window_scaled = scaler.transform(window.T).T
+        data_bytes = window_scaled.astype(np.float32).tobytes()
         for j in range(0, len(data_bytes), CHUNK_SIZE):
             chunk = data_bytes[j:j + CHUNK_SIZE]
             ser.write(chunk)
@@ -179,7 +181,7 @@ def load_or_build_splits(data_dir, rat_ids, out_dir="./splits", seed=RANDOM_SEED
 
     return {s: np.load(p) for s, p in paths.items()}
 
-def run_validation(ser, X_val, y_val):
+def run_validation(ser, X_val, y_val, scaler):
     print("Starting validation")
 
     ser.reset_input_buffer()
@@ -195,7 +197,8 @@ def run_validation(ser, X_val, y_val):
                 pass
         first_send_consumed = False
 
-        data_bytes = window.astype(np.float32).tobytes()
+        window_scaled = scaler.transform(window.T).T
+        data_bytes = window_scaled.astype(np.float32).tobytes()
         for j in range(0, len(data_bytes), CHUNK_SIZE):
             ser.write(data_bytes[j:j + CHUNK_SIZE])
             ser.flush()
@@ -244,13 +247,17 @@ def early_stopping(ser, lines):
                 val_loss_counter += 1
 
 if __name__ == "__main__":
-    data_dir = "./dataset_rats_50w"
+    data_dir = "./dataset_rats"
     rat_ids = list(range(4, 10))
 
     splits = load_or_build_splits(data_dir, rat_ids)
     X_train, y_train = splits["train"]["X"], splits["train"]["y"]
     X_val, y_val = splits["val"]["X"], splits["val"]["y"]
     X_test, y_test = splits["test"]["X"], splits["test"]["y"]
+
+    n_channels = X_train.shape[1]
+    scaler = StandardScaler()
+    scaler.fit(X_train.transpose(0, 2, 1).reshape(-1, n_channels))
 
     ser = serial.Serial(PORT, BAUD, timeout=5)
 
@@ -271,8 +278,8 @@ if __name__ == "__main__":
 
     try:
         for epoch in range(EPOCHS):
-            stream_epoch(ser, epoch, X_train, y_train, first_send_consumed=(epoch == 0))
-            lines = run_validation(ser, X_val, y_val)
+            stream_epoch(ser, epoch, X_train, y_train, scaler, first_send_consumed=(epoch == 0))
+            lines = run_validation(ser, X_val, y_val, scaler)
             early_stopping(ser, lines)
             if val_loss_counter >= 5:
                 print("Early stopping triggered")

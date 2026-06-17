@@ -17,11 +17,10 @@ const int N_FLOATS = N_CHANNELS * SEQ_LEN;
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 256;
 
-const int BATCH_SIZE = 32;
+const int BATCH_SIZE = 64;
 const bool FREEZE_CONV = false;
-const float INITIAL_LR = 0.01f;
+const float INITIAL_LR = 0.002f;
 const float LR_DECAY = 0.95f;
-const int DECAY_STEP = 100;
 
 const int C1_FILTERS = 16;
 const int C1_KH = N_CHANNELS;
@@ -67,13 +66,12 @@ GetLoss getLoss;
 
 static int windowCount = 0;
 static int batchCounter = 0;
-static int globalBatchCount = 0;
 static float currentLR = INITIAL_LR;
 
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
-void loadWeights() {
+/*void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
   memcpy(conv1.biases.data, conv1_b, conv1.biases.size * sizeof(float));
   memcpy(conv1.mWeights.data, conv1_mw, conv1.mWeights.size * sizeof(float));
@@ -90,7 +88,7 @@ void loadWeights() {
   memcpy(layer2.biases.data, layer2_b, layer2.biases.size * sizeof(float));
   memcpy(layer2.mWeights.data, layer2_mw, layer2.mWeights.size * sizeof(float));
   memcpy(layer2.mBiases.data, layer2_mb, layer2.mBiases.size * sizeof(float));
-}
+}*/
 
 void exportModel() {
   Serial.println("START_EXPORT");
@@ -198,9 +196,6 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     batchCounter++;
     if (batchCounter >= BATCH_SIZE) {
       float scaledLR = currentLR / BATCH_SIZE;
-      globalBatchCount++;
-      if (globalBatchCount % DECAY_STEP == 0)
-        currentLR *= LR_DECAY;
       if (!FREEZE_CONV) {
         conv1.update(scaledLR);
         conv2.update(scaledLR);
@@ -256,7 +251,7 @@ void get_data() {
 
 void setup() {
   Serial.begin(1000000);
-  loadWeights();
+  //loadWeights();
   while (true) {
     Serial.println("READY");
     delay(500);
@@ -289,6 +284,7 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
+      currentLR *= LR_DECAY;
     }
     if (c == 'D') {
       Serial.print("VAL_LOSS:");
@@ -299,7 +295,6 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
-      currentLR = INITIAL_LR;
     }
   }
   Serial.println("SEND");
