@@ -443,6 +443,7 @@ def stream_live(ser, windows, labels, csv_writer):
 
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
+    splits_dir = "./splits_rat10_only"
     PRETRAIN_RATS = [9]
     LIVE_RAT      = [10]
 
@@ -454,11 +455,27 @@ if __name__ == "__main__":
     X_live   = splits["live"]["X"]
     y_live   = splits["live"]["y"]
 
+    # For testing train - test - stream on rat 10
+    # X_train = np.load(f"{splits_dir}/train.npz")["X"] 
+    # y_train = np.load(f"{splits_dir}/train.npz")["y"]
+    # X_val   = np.load(f"{splits_dir}/val.npz")["X"]
+    # y_val   = np.load(f"{splits_dir}/val.npz")["y"]
+    # X_live  = np.load(f"{splits_dir}/live.npz")["X"]
+    # y_live  = np.load(f"{splits_dir}/live.npz")["y"]
+
+
     f_csv   = open("training_accuracy.csv", "w", newline="", encoding="utf-8")
     writer  = csv.writer(f_csv)
     writer.writerow(["epoch", "window_index", "label", "pred", "confidence",
                      "running_correct", "running_total",
                      "running_accuracy", "running_f1", "status"])
+    
+    # saving seperately for rat10 only test
+    # f_csv   = open("training_accuracy_rat10.csv", "w", newline="", encoding="utf-8")
+    # writer  = csv.writer(f_csv)
+    # writer.writerow(["epoch", "window_index", "label", "pred", "confidence",
+    #                  "running_correct", "running_total",
+    #                  "running_accuracy", "running_f1", "status"])
 
     print("Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=5)
