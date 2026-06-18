@@ -4,25 +4,26 @@ import serial
 import random
 import time
 import csv
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler, StandardScaler, MinMaxScaler
 from tqdm import tqdm
 
 PORT = "COM7"
 BAUD = 1000000
-RANDOM_SEED = 10
 
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS        = 56
-SEQ_LEN           = 16
+SEQ_LEN           = 16 # from 32
 CHUNK_SIZE        = 256
-EPOCHS            = 1
-SUBSAMPLE_RATE    = 1
+EPOCHS            = 1 # mondrian is a one-pass
+SUBSAMPLE_RATE    = 8 # from 10
+RANDOM_SEED       = 10
 
 N_CLASSES = 3
 CLASS_NAMES = ("dorsi", "plantar", "none")
 
 minimum_val_loss = np.inf
 val_loss_counter = 0
+
 
 def readline(ser):
     try:
@@ -71,7 +72,7 @@ def wait_for_answer(ser, timeout_s=5.0):
     return probs, pred_idx, status
 
 def send_signal(ser, window):
-    """Sender float32 arrays i chunks af 256 bytes."""
+    """Sender float32 arrays i chunks af 256 bytes (kræver ACK tjek pga. main branch cnn adfærd)."""
     data_bytes = window.astype(np.float32).tobytes()
     for j in range(0, len(data_bytes), CHUNK_SIZE):
         chunk = data_bytes[j:j + CHUNK_SIZE]
@@ -80,21 +81,67 @@ def send_signal(ser, window):
         readline(ser)
     time.sleep(0.002)
 
-def prepare_dataset(rms_data, angles_ds):
 
+# def prepare_dataset(rms_data, angles_ds): # HARD limit version, not to great, reduces sample count by too much
+#     rms_data = rms_data[:N_CHANNELS, :]
+#     X = rms_data.T
+
+#     y = np.full(len(angles_ds), 2, dtype=np.int64)
+#     y[angles_ds >  2.0] = 1   # plantar
+#     y[angles_ds < -2.0] = 0   # dorsi
+
+#     X_seq, y_seq = [], []
+#     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
+#         window_labels = y[i - SEQ_LEN:i]
+#         counts   = np.bincount(window_labels, minlength=3)
+#         majority = int(np.argmax(counts))
+#         if counts[majority] < SEQ_LEN * 0.6:
+#             continue
+#         X_seq.append(X[i - SEQ_LEN:i].T)
+#         y_seq.append(majority)
+
+#     return np.array(X_seq), np.array(y_seq)
+
+# def prepare_dataset(rms_data, angles_ds):
+#     rms_data = rms_data[:N_CHANNELS, :]
+#     X = rms_data.T
+
+#     y = np.full(len(angles_ds), 2, dtype=np.int64)
+#     y[angles_ds >  2.0] = 1   # plantar
+#     y[angles_ds < -2.0] = 0   # dorsi
+
+#     X_seq, y_seq = [], []
+#     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
+#         X_seq.append(X[i - SEQ_LEN:i].T)
+#         y_seq.append(y[i])
+
+#     return np.array(X_seq), np.array(y_seq)
+
+
+def prepare_dataset(rms_data, angles_ds): # majority voting
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
 
-
-    y = np.full(len(angles_ds), 2, dtype=np.int64)
-    y[angles_ds >  2.0] = 1   # Plantar
-    y[angles_ds < -2.0] = 0   # Dorsi
+    y = np.full(len(angles_ds), 2, dtype=np.int64)  # Default: None (2)
+    y[angles_ds >  2.0] = 1   # Plantar (1)
+    y[angles_ds < -2.0] = 0   # Dorsi (0)
 
     X_seq, y_seq = [], []
     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
-        X_seq.append(X[i - SEQ_LEN:i].T)
+        window_labels = y[i - SEQ_LEN:i]
 
-        y_seq.append(y[i - 1])
+        counts = np.bincount(window_labels, minlength=3)
+
+        majority = int(np.argmax(counts))
+
+        if counts[majority] < (SEQ_LEN * 0.6):
+            continue
+
+        if majority == 2 and counts[2] < (SEQ_LEN * 0.4):
+            continue
+
+        X_seq.append(X[i - SEQ_LEN:i].T)
+        y_seq.append(majority)
 
     return np.array(X_seq), np.array(y_seq)
 
@@ -135,8 +182,8 @@ def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6
     print("Building Live dataset (Rat 10)...")
     X_live, y_live = build_dataset(data_dir, live_rats)
 
-    # Rettet til StandardScaler for at matche CNN
-    scaler = StandardScaler()
+
+    scaler = MinMaxScaler()
     n_ch = X_base.shape[1]
 
     def scale_data(raw_data, fit=False):
@@ -150,12 +197,12 @@ def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6
 
     np.savez(paths["train"], X=X_tr, y=y_base[splits["train"]])
     np.savez(paths["val"],   X=X_va, y=y_base[splits["val"]])
-    np.savez(paths["live"],  X=X_li, y=y_live)
 
-    # Gemmer mean og var i stedet for min/scale, da vi bruger StandardScaler nu
-    np.savez("scaler.npz", mean=np.asarray(scaler.mean_), scale=np.asarray(scaler.scale_))
+    np.savez(paths["live"],  X=X_li, y=y_live)
+    np.savez("scaler.npz", mean=np.asarray(scaler.min_), scale=np.asarray(scaler.scale_))
 
     return {s: np.load(p) for s, p in paths.items()}
+
 
 def calculate_macro_f1(cm):
     f1s = []
@@ -190,7 +237,8 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
         send_signal(ser, window)
 
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
-        one_hot[label] = 1
+        if i < 300:
+            one_hot[label] = 1
         ser.write(b"L")
         ser.write(one_hot.tobytes())
         ser.flush()
@@ -219,6 +267,7 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
     final_acc = running_correct / running_total if running_total > 0 else 0.0
     final_f1  = calculate_macro_f1(running_cm)
     print(f"Epoch {epoch_idx+1} final -- Acc: {final_acc*100:.2f}%  F1: {final_f1:.4f}")
+
 
 def run_validation(ser, X_val, y_val):
     print("\nValidation pass...")
@@ -279,6 +328,7 @@ def run_validation(ser, X_val, y_val):
 
     return val_lines
 
+
 def save_model(ser, filename="trained_weights.h"):
     print("Requesting model export...")
     ser.reset_input_buffer()
@@ -310,9 +360,11 @@ def early_stopping_check(ser, val_lines):
             except Exception:
                 pass
 
+
 def stream_live(ser, windows, labels, csv_writer):
     print(f"\n--- STARTING LIVE ONLINE LEARNING (Chronological) ---")
     combined = list(zip(windows, labels))
+
 
     running_correct = 0
     running_total   = 0
@@ -329,14 +381,8 @@ def stream_live(ser, windows, labels, csv_writer):
         ser.flush()
         send_signal(ser, window)
 
-
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
         one_hot[label] = 1
-
-        # one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
-        # if i < 450:
-        #     one_hot[label] = 1
-
         ser.write(b"L")
         ser.write(one_hot.tobytes())
         ser.flush()
@@ -344,11 +390,16 @@ def stream_live(ser, windows, labels, csv_writer):
         probs, pred_idx, status = wait_for_answer(ser)
         CONFIDENCE_THRESHOLD = 0.45
 
+
         confidence = float(np.max(probs)) if probs is not None else 0.0
         if probs is not None and len(probs) == 3:
             weights = np.array([1, 1, 1])
             weighted_probs = probs * weights
+
+
             pred_idx = int(np.argmax(weighted_probs))
+
+
             confidence = float(np.max(probs))
         else:
             confidence = 0.0
@@ -358,9 +409,23 @@ def stream_live(ser, windows, labels, csv_writer):
             if pred_idx == int(label):
                 running_correct += 1
             running_cm[int(label), pred_idx] += 1
+        # if probs is not None:
+        #     confidence = float(np.max(probs))
+
+        #     if confidence < CONFIDENCE_THRESHOLD:
+        #         pred_idx = -1
+        # else:
+        #     confidence = 0.0
+
+        # if pred_idx >= 0:
+        #     running_total += 1
+        #     if pred_idx == int(label):
+        #         running_correct += 1
+        #     running_cm[int(label), pred_idx] += 1
 
         f1 = calculate_macro_f1(running_cm)
         acc = running_correct / running_total if running_total > 0 else 0.0
+
 
         csv_writer.writerow([
             "LIVE", i, int(label), pred_idx,
@@ -375,9 +440,11 @@ def stream_live(ser, windows, labels, csv_writer):
     final_f1  = calculate_macro_f1(running_cm)
     print(f"\nLive Streaming Finished -- Final Acc: {final_acc*100:.2f}%  Final F1: {final_f1:.4f}")
 
+
+
 if __name__ == "__main__":
     data_dir = "./dataset_rats_50w"
-
+    splits_dir = "./splits_6rats"
     PRETRAIN_RATS = [9]
     LIVE_RAT      = [10]
 
@@ -389,11 +456,27 @@ if __name__ == "__main__":
     X_live   = splits["live"]["X"]
     y_live   = splits["live"]["y"]
 
+    # For testing train - test - stream on rat 10
+    # X_train = np.load(f"{splits_dir}/train.npz")["X"]
+    # y_train = np.load(f"{splits_dir}/train.npz")["y"]
+    # X_val   = np.load(f"{splits_dir}/val.npz")["X"]
+    # y_val   = np.load(f"{splits_dir}/val.npz")["y"]
+    # X_live  = np.load(f"{splits_dir}/live.npz")["X"]
+    # y_live  = np.load(f"{splits_dir}/live.npz")["y"]
+
+
     f_csv   = open("training_accuracy.csv", "w", newline="", encoding="utf-8")
     writer  = csv.writer(f_csv)
     writer.writerow(["epoch", "window_index", "label", "pred", "confidence",
                      "running_correct", "running_total",
                      "running_accuracy", "running_f1", "status"])
+
+    # saving seperately for rat10 only test
+    # f_csv   = open("training_accuracy_rat10.csv", "w", newline="", encoding="utf-8")
+    # writer  = csv.writer(f_csv)
+    # writer.writerow(["epoch", "window_index", "label", "pred", "confidence",
+    #                  "running_correct", "running_total",
+    #                  "running_accuracy", "running_f1", "status"])
 
     print("Opening serial port...")
     ser = serial.Serial(PORT, BAUD, timeout=5)
@@ -417,6 +500,18 @@ if __name__ == "__main__":
     time.sleep(0.5)
     ser.reset_input_buffer()
 
+
+    try:
+
+        print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
+
+        stream_live(ser, X_live, y_live, writer)
+        f_csv.flush()
+
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
+
+
     # try:
     #     print("\n=== PHASE 1: PRETRAIN ON RATS 4-9 ===")
     #     for epoch in range(EPOCHS):
@@ -437,20 +532,6 @@ if __name__ == "__main__":
 
     # except KeyboardInterrupt:
     #     print("\nInterrupted.")
-
-    try:
-        print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
-
-        stream_live(ser, X_live, y_live, writer)
-        f_csv.flush()
-
-        val_lines = run_validation(ser, X_val, y_val)
-
-        for line in val_lines:
-            print(f"  --> {line}")
-
-    except KeyboardInterrupt:
-        print("\nInterrupted.")
 
     f_csv.close()
     ser.close()

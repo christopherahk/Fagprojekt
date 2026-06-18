@@ -6,7 +6,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.metrics import classification_report, confusion_matrix
 import sys, os
 try:
-    from streamer import load_rat, prepare_dataset, SEQ_LEN, N_CHANNELS, SUBSAMPLE_RATE
+    from python_files.streamerOld import load_rat, prepare_dataset, SEQ_LEN, N_CHANNELS, SUBSAMPLE_RATE
 except ImportError:
     print("Could not import streamer.py -- make sure this file sits next to it.")
     sys.exit(1)

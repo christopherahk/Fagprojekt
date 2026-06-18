@@ -1,8 +1,8 @@
 from pathlib import Path
 import os
 import numpy as np
-from streamer import prepare_dataset, load_rat
-import importlib, streamer
+from python_files.streamerOld import prepare_dataset, load_rat
+import importlib, python_files.streamerOld as streamerOld
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, StratifiedKFold, cross_val_predict, LeaveOneGroupOut
 from sklearn.tree import DecisionTreeClassifier
@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import classification_report, confusion_matrix
 
-from streamer import load_rat, prepare_dataset
+from python_files.streamerOld import load_rat, prepare_dataset
 from sklearn.neural_network import MLPClassifier
 
 def load_baseline_dataset(data_dir, rat_ids):
@@ -213,15 +213,15 @@ if __name__ == "__main__":
     evaluate_logo_per_rat_norm("MLP (4 hidden)", mlp, X_ext, y_l, groups_l)
     evaluate_logo_per_rat_norm("RF 50 trees",    rf_ext, X_ext, y_l, groups_l)
 
-    original_seq_len = streamer.SEQ_LEN
-    streamer.SEQ_LEN = 32
+    original_seq_len = streamerOld.SEQ_LEN
+    streamerOld.SEQ_LEN = 32
 
     X32, y32, groups32 = load_baseline_dataset(data_dir, rat_ids)
     X32_ext = extract_features_extended(X32)
     rf_32 = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42)
     evaluate_logo_per_rat_norm("RF SEQ_LEN=32", rf_32, X32_ext, y32, groups32)
 
-    streamer.SEQ_LEN = original_seq_len
+    streamerOld.SEQ_LEN = original_seq_len
     X_rbi_fft = features_rbi_fft(X_l, n_bins=4)  # start med 4 bins
     evaluate_logo_per_rat_norm("RBI(4) + FFT", rf_ext, X_rbi_fft, y_l, groups_l)
 

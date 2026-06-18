@@ -12,7 +12,7 @@ from pathlib import Path
 from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 try:
-    from streamer import load_rat, prepare_dataset, N_CHANNELS, SEQ_LEN
+    from python_files.streamerOld import load_rat, prepare_dataset, N_CHANNELS, SEQ_LEN
 except ImportError:
     raise ImportError("Place this file next to streamer.py")
 
