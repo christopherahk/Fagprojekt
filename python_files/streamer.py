@@ -88,6 +88,8 @@ def save_model_to_file(ser, filename="cpp_part/trained_weights.h"):
                 break
             if started:
                 f.write(line + "\n")
+
+            #i am going thorugh changes - Nanak
     print(f"Model saved to {filename}")
     ser.write(b'R')
     ser.flush()
