@@ -1,3 +1,4 @@
+// clang-format off
 #ifndef TRAINED_WEIGHTS_H
 #define TRAINED_WEIGHTS_H
 
@@ -821,3 +822,4 @@ float layer2_w[] = {
 float layer2_b[] = {0.0462721, 0.0478688, -0.0889252};
 
 #endif
+// clang-format on
