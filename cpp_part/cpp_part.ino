@@ -17,11 +17,10 @@ const int N_FLOATS = N_CHANNELS * SEQ_LEN;
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 256;
 
-const int BATCH_SIZE = 32;
+const int BATCH_SIZE = 64;
 const bool FREEZE_CONV = false;
-const float INITIAL_LR = 0.01f;
+const float INITIAL_LR = 0.002f;
 const float LR_DECAY = 0.95f;
-const int DECAY_STEP = 100;
 
 const int C1_FILTERS = 16;
 const int C1_KH = N_CHANNELS;
@@ -67,30 +66,21 @@ GetLoss getLoss;
 
 static int windowCount = 0;
 static int batchCounter = 0;
-static int globalBatchCount = 0;
 static float currentLR = INITIAL_LR;
 
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
-/*void loadWeights() {
+void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
   memcpy(conv1.biases.data, conv1_b, conv1.biases.size * sizeof(float));
-  memcpy(conv1.mWeights.data, conv1_mw, conv1.mWeights.size * sizeof(float));
-  memcpy(conv1.mBiases.data, conv1_mb, conv1.mBiases.size * sizeof(float));
   memcpy(conv2.weights.data, conv2_w, conv2.weights.size * sizeof(float));
   memcpy(conv2.biases.data, conv2_b, conv2.biases.size * sizeof(float));
-  memcpy(conv2.mWeights.data, conv2_mw, conv2.mWeights.size * sizeof(float));
-  memcpy(conv2.mBiases.data, conv2_mb, conv2.mBiases.size * sizeof(float));
   memcpy(layer1.weights.data, layer1_w, layer1.weights.size * sizeof(float));
   memcpy(layer1.biases.data, layer1_b, layer1.biases.size * sizeof(float));
-  memcpy(layer1.mWeights.data, layer1_mw, layer1.mWeights.size * sizeof(float));
-  memcpy(layer1.mBiases.data, layer1_mb, layer1.mBiases.size * sizeof(float));
   memcpy(layer2.weights.data, layer2_w, layer2.weights.size * sizeof(float));
   memcpy(layer2.biases.data, layer2_b, layer2.biases.size * sizeof(float));
-  memcpy(layer2.mWeights.data, layer2_mw, layer2.mWeights.size * sizeof(float));
-  memcpy(layer2.mBiases.data, layer2_mb, layer2.mBiases.size * sizeof(float));
-}*/
+}
 
 void exportModel() {
   Serial.println("START_EXPORT");
@@ -113,20 +103,12 @@ void exportModel() {
 
   printTensor("conv1_w", conv1.weights);
   printTensor("conv1_b", conv1.biases);
-  printTensor("conv1_mw", conv1.mWeights);
-  printTensor("conv1_mb", conv1.mBiases);
   printTensor("conv2_w", conv2.weights);
   printTensor("conv2_b", conv2.biases);
-  printTensor("conv2_mw", conv2.mWeights);
-  printTensor("conv2_mb", conv2.mBiases);
   printTensor("layer1_w", layer1.weights);
   printTensor("layer1_b", layer1.biases);
-  printTensor("layer1_mw", layer1.mWeights);
-  printTensor("layer1_mb", layer1.mBiases);
   printTensor("layer2_w", layer2.weights);
   printTensor("layer2_b", layer2.biases);
-  printTensor("layer2_mw", layer2.mWeights);
-  printTensor("layer2_mb", layer2.mBiases);
 
   Serial.println("\n#endif");
   Serial.println("END_EXPORT");
@@ -159,7 +141,6 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
 
   conv1.forward(input);
   reluConv1.forward(conv1.output);
-
   conv2.forward(reluConv1.output);
   reluConv2.forward(conv2.output);
 
@@ -183,24 +164,29 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     layer1.backward(relu1.dInputs);
 
     memcpy(dFlat.data, layer1.dInputs.data, POOL_OUT * sizeof(float));
-    for (int c = 0; c < C2_FILTERS; c++) {
-      float g = dFlat.data[c] / C2_OUT_W;
-      for (int t = 0; t < C2_OUT_W; t++)
-        reluConv2.output.data[c * C2_OUT_W + t] = g;
+
+    if (reluConv2.dInputs.rowCount != C2_FILTERS ||
+        reluConv2.dInputs.colCount != C2_OUT_W) {
+      reluConv2.dInputs = Tensor(C2_FILTERS, C2_OUT_W);
     }
 
-    reluConv2.backward(reluConv2.output);
-    conv2.backward(reluConv2.dInputs, true);
+    for (int c = 0; c < C2_FILTERS; c++) {
+      float g = dFlat.data[c] / C2_OUT_W;
+      for (int t = 0; t < C2_OUT_W; t++) {
+        reluConv2.dInputs.data[c * C2_OUT_W + t] = g;
+      }
+    }
 
-    reluConv1.backward(conv2.dInputs);
-    conv1.backward(reluConv1.dInputs, true);
+    reluConv2.backward(reluConv2.dInputs);
+    if (!FREEZE_CONV) {
+      conv2.backward(reluConv2.dInputs, true);
+      reluConv1.backward(conv2.dInputs);
+      conv1.backward(reluConv1.dInputs, true);
+    }
 
     batchCounter++;
     if (batchCounter >= BATCH_SIZE) {
       float scaledLR = currentLR / BATCH_SIZE;
-      globalBatchCount++;
-      if (globalBatchCount % DECAY_STEP == 0)
-        currentLR *= LR_DECAY;
       if (!FREEZE_CONV) {
         conv1.update(scaledLR);
         conv2.update(scaledLR);
@@ -211,22 +197,21 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
   }
 
-  if ((wCount % 100 == 0 && !testing)) {
+  if (wCount % 100 == 0 && !testing) {
     printProbs(labelIdx, loss);
   }
 
   if (testing) {
     total_loss += loss;
-
     Tensor probs = getLoss.activation.output;
     int pred = 0;
-    for (int i = 1; i < N_CLASSES; i++)
-      if (probs.data[i] > probs.data[pred]) {
+    for (int i = 1; i < N_CLASSES; i++) {
+      if (probs.data[i] > probs.data[pred])
         pred = i;
-      }
-    if (pred == labelIdx) {
-      total_correct++;
     }
+    if (pred == labelIdx)
+      total_correct++;
+    printProbs(labelIdx, loss);
   }
 }
 
@@ -256,8 +241,7 @@ void get_data() {
 
 void setup() {
   Serial.begin(1000000);
-  if (testing) {
-  }
+  loadWeights();
   while (true) {
     Serial.println("READY");
     delay(500);
@@ -274,14 +258,16 @@ void loop() {
     char c = Serial.read();
     if (c == 'E') {
       unsigned long start = millis();
-      while (!Serial.available())
+      while (!Serial.available()) {
         if (millis() - start > 100)
           break;
+      }
       if (Serial.available() && Serial.read() == 'X') {
         exportModel();
-        while (true)
+        while (true) {
           if (Serial.available() && Serial.read() == 'R')
             break;
+        }
         return;
       }
     }
@@ -290,6 +276,8 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
+      currentLR *= LR_DECAY;
+      return;
     }
     if (c == 'D') {
       Serial.print("VAL_LOSS:");
@@ -300,7 +288,14 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
-      currentLR = INITIAL_LR;
+      return;
+    }
+    if (c == 'T') {
+      testing = true;
+      total_loss = 0.0f;
+      total_correct = 0;
+      windowCount = 0;
+      return;
     }
   }
   Serial.println("SEND");

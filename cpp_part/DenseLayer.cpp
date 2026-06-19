@@ -26,17 +26,17 @@ static void ensureTensorShape(Tensor &t, int rows, int cols) {
   }
 }
 
-static void ensureTensorShapeZero(Tensor &t, int rows, int cols) {
-  if (t.rowCount != rows || t.colCount != cols) {
-    t = Tensor(rows, cols);
-    memset(t.data, 0, t.size * sizeof(float));
-  }
-}
-
 DenseLayer::DenseLayer(int inputCount, int neuronCount)
     : weights(inputCount, neuronCount), biases(1, neuronCount), inputs(nullptr),
-      output(), dWeights(), dBiases(), dInputs(), mWeights(), vWeights(),
-      mBiases(), vBiases(), adamT(0) {
+      output(), dWeights(), dBiases(), dInputs(),
+      mWeights(inputCount, neuronCount), vWeights(inputCount, neuronCount),
+      mBiases(1, neuronCount), vBiases(1, neuronCount), adamT(0) {
+
+  memset(mWeights.data, 0, mWeights.size * sizeof(float));
+  memset(vWeights.data, 0, vWeights.size * sizeof(float));
+  memset(mBiases.data, 0, mBiases.size * sizeof(float));
+  memset(vBiases.data, 0, vBiases.size * sizeof(float));
+
   float heStd = sqrtf(2.0f / inputCount);
   for (int i = 0; i < inputCount * neuronCount; i++) {
     float u1 = (random(1, 100001)) / 100000.0f;
@@ -116,11 +116,6 @@ void DenseLayer::backward(const Tensor &dValues, bool computeDInputs) {
 }
 
 void DenseLayer::update(float learningRate) {
-  ensureTensorShapeZero(mWeights, weights.rowCount, weights.colCount);
-  ensureTensorShapeZero(vWeights, weights.rowCount, weights.colCount);
-  ensureTensorShapeZero(mBiases, 1, biases.colCount);
-  ensureTensorShapeZero(vBiases, 1, biases.colCount);
-
   adamT++;
   float bc1 = 1.0f - powf(kAdamBeta1, (float)adamT);
   float bc2 = 1.0f - powf(kAdamBeta2, (float)adamT);

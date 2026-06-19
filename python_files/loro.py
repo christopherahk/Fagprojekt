@@ -10,6 +10,7 @@ SEQ_LEN = 16
 BATCH_SIZE = 64
 EPOCHS = 50
 LR = 0.002
+SUBSAMPLE_RATE = 1
 
 
 class CNN1D(nn.Module):
@@ -40,7 +41,7 @@ def prepare_dataset(rms_data, angles_ds):
     y[angles_ds < -2.0] = 2
 
     X_seq, y_seq = [], []
-    for i in range(SEQ_LEN, len(X)):
+    for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
         X_seq.append(X[i - SEQ_LEN:i])
         y_seq.append(y[i])
 
@@ -164,7 +165,7 @@ def leave_one_rat_out(data_dir, rat_ids, seed=42):
 
 
 if __name__ == "__main__":
-    data_dir = "./dataset_rats_test"
+    data_dir = "./dataset_rats"
     rat_ids = list(range(4, 11))
 
     results = leave_one_rat_out(data_dir, rat_ids)
