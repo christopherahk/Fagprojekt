@@ -71,7 +71,7 @@ static float currentLR = INITIAL_LR;
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
-/*void loadWeights() {
+void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
   memcpy(conv1.biases.data, conv1_b, conv1.biases.size * sizeof(float));
   memcpy(conv2.weights.data, conv2_w, conv2.weights.size * sizeof(float));
@@ -80,7 +80,7 @@ static int total_correct = 0;
   memcpy(layer1.biases.data, layer1_b, layer1.biases.size * sizeof(float));
   memcpy(layer2.weights.data, layer2_w, layer2.weights.size * sizeof(float));
   memcpy(layer2.biases.data, layer2_b, layer2.biases.size * sizeof(float));
-}*/
+}
 
 void exportModel() {
   Serial.println("START_EXPORT");
@@ -240,7 +240,7 @@ void get_data() {
 
 void setup() {
   Serial.begin(1000000);
-  // loadWeights();
+  loadWeights();
   while (true) {
     Serial.println("READY");
     delay(500);

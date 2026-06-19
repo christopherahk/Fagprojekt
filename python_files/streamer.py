@@ -270,7 +270,7 @@ def early_stopping(ser, lines):
             if val_loss < minimum_val_loss:
                 minimum_val_loss = val_loss
                 val_loss_counter = 0
-                save_model_to_file(ser, "cpp_part/trained_weights.h")
+                save_model_to_file(ser, "./cpp_part/trained_weights.h")
             else:
                 val_loss_counter += 1
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     data_dir = "./dataset_rats"
     rat_ids = [10]
 
-    splits = load_or_build_splits_first_shuffle(data_dir, rat_ids)
+    splits = load_or_build_splits(data_dir, rat_ids)
     X_train, y_train = splits["train"]["X"], splits["train"]["y"]
     X_val, y_val = splits["val"]["X"], splits["val"]["y"]
     X_test, y_test = splits["test"]["X"], splits["test"]["y"]
