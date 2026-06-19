@@ -1,12 +1,14 @@
 #pragma once
 #include "Activations.h"
-#include "CategoricalCrossEntropyLoss.h"
+#include "FocalLoss.h"
 
 struct GetLoss {
   Softmax activation;
-  CategoricalCrossEntropyLoss loss;
+  FocalLoss loss;
 
   Tensor dInputs;
+
+  GetLoss(float gamma = 2.0f) : loss(gamma) {}
 
   float forward(const Tensor &yPred, const Tensor &yTrue);
   void backward(const Tensor &yTrue);

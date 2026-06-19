@@ -21,6 +21,7 @@ const int BATCH_SIZE = 64;
 const bool FREEZE_CONV = false;
 const float INITIAL_LR = 0.002f;
 const float LR_DECAY = 0.95f;
+const float GAMMA = 2.0f; // focal loss focusing parameter; 0 = plain CCE
 
 const int C1_FILTERS = 16;
 const int C1_KH = N_CHANNELS;
@@ -62,7 +63,7 @@ ReLU reluConv2;
 DenseLayer layer1(POOL_OUT, HIDDEN_SIZE);
 ReLU relu1;
 DenseLayer layer2(HIDDEN_SIZE, OUTPUT_SIZE);
-GetLoss getLoss;
+GetLoss getLoss(GAMMA);
 
 static int windowCount = 0;
 static int batchCounter = 0;

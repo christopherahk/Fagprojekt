@@ -9,7 +9,7 @@ import serial
 import random
 import time
 
-PORT = "COM3"
+PORT = "/dev/ttyACM0"
 BAUD = 1_000_000
 
 DOWNSAMPLE_FACTOR = 50
