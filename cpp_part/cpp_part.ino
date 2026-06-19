@@ -211,6 +211,7 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
     if (pred == labelIdx)
       total_correct++;
+    printProbs(labelIdx, loss);
   }
 }
 
@@ -284,6 +285,13 @@ void loop() {
       Serial.print("VAL_ACC:");
       Serial.println((float)total_correct / windowCount, 4);
       testing = false;
+      total_loss = 0.0f;
+      total_correct = 0;
+      windowCount = 0;
+      return;
+    }
+    if (c == 'T') {
+      testing = true;
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;

@@ -2,6 +2,8 @@ import numpy as np
 from scipy.signal import decimate
 from utils import read_rhd
 from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 import os
 import serial
 import random
@@ -274,7 +276,76 @@ def early_stopping(ser, lines):
             else:
                 val_loss_counter += 1
 
+def run_test(ser, X_test, y_test, scaler):
+    print("Starting test")
+
+    ser.reset_input_buffer()
+    ser.write(b'T')
+    ser.flush()
+    while readline(ser).strip() != "SEND":
+        pass
+
+    y_pred = []
+    first_send_consumed = True
+
+    for i, (window, label) in enumerate(zip(X_test, y_test)):
+        if not first_send_consumed:
+            while readline(ser).strip() != "SEND":
+                pass
+        first_send_consumed = False
+
+        window_scaled = scaler.transform(window.T).T
+        data_bytes = window_scaled.astype(np.float32).tobytes()
+        for j in range(0, len(data_bytes), CHUNK_SIZE):
+            ser.write(data_bytes[j:j + CHUNK_SIZE])
+            ser.flush()
+            readline(ser)
+
+        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+        one_hot[label] = 1
+        ser.write(one_hot.tobytes())
+        ser.flush()
+
+        pred = None
+        while True:
+            line = readline(ser)
+            if line.startswith("Probs"):
+                probs_str = line.split("|")[0].replace("Probs:", "").strip()
+                probs = [float(p) for p in probs_str.split(",")]
+                pred = int(np.argmax(probs))
+            if line.startswith("TRAIN"):
+                break
+
+        if pred is not None:
+            y_pred.append(pred)
+
+        if i % 100 == 0:
+            print(f"Test progress: {i}/{len(X_test)}")
+
+    ser.write(b'D')
+    ser.flush()
+
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        line = readline(ser)
+        if line.startswith("VAL_ACC"):
+            print(line)
+            break
+        if line.startswith("VAL_LOSS"):
+            print(line)
+
+    class_names = list(CLASSES.keys())
+    cm = confusion_matrix(y_test[:len(y_pred)], y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+    disp.plot(cmap="Blues")
+    plt.title("Test Set Confusion Matrix")
+    plt.tight_layout()
+    plt.savefig("./outputs/confusion_matrix_no_pretrain.png", dpi=150)
+    plt.show()
+    print(f"Test accuracy: {cm.diagonal().sum() / cm.sum():.4f}")
+
 if __name__ == "__main__":
+    testing = True
     data_dir = "./dataset_rats"
     rat_ids = [10]
 
@@ -305,13 +376,16 @@ if __name__ == "__main__":
         pass
 
     try:
-        for epoch in range(EPOCHS):
-            stream_epoch(ser, epoch, X_train, y_train, scaler, first_send_consumed=(epoch == 0))
-            lines = run_validation(ser, X_val, y_val, scaler)
-            early_stopping(ser, lines)
-            if val_loss_counter >= 5:
-                print("Early stopping triggered")
-                break
+        if not testing:
+            for epoch in range(EPOCHS):
+                stream_epoch(ser, epoch, X_train, y_train, scaler, first_send_consumed=(epoch == 0))
+                lines = run_validation(ser, X_val, y_val, scaler)
+                early_stopping(ser, lines)
+                if val_loss_counter >= 5:
+                    print("Early stopping triggered")
+                    break
+        else:
+            run_test(ser, X_test, y_test, scaler)
     except KeyboardInterrupt:
         print("Training interrupted by user.")
     ser.close()

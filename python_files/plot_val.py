@@ -49,4 +49,5 @@ ax2.set_ylabel("Accuracy")
 ax2.legend()
 
 plt.tight_layout()
+plt.savefig("./outputs/plotted_val.png")
 plt.show()
