@@ -7,7 +7,7 @@ import csv
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
-PORT = "COM7"
+PORT = "COM8"
 BAUD = 1000000
 RANDOM_SEED = 10
 
