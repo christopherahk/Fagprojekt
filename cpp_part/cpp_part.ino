@@ -235,7 +235,11 @@ void get_data() {
       ;
     label[i] = Serial.read();
   }
+  unsigned long t0 = micros();
   processWindow(values, label, windowCount++);
+  unsigned long t1 = micros();
+  Serial.print("PROC_TIME:");
+  Serial.println(t1 - t0);
   Serial.println("TRAIN");
 }
 
