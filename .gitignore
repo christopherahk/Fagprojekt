@@ -60,6 +60,7 @@ load_intan_rhd_format.py
 
 # Folders
 data/
+splits_population/
 data2/
 softmax_csv_analysis/
 softmax_test_120.csv

@@ -347,7 +347,7 @@ def run_test(ser, X_test, y_test, scaler):
     print(f"Test accuracy: {cm.diagonal().sum() / cm.sum():.4f}")
 
 if __name__ == "__main__":
-    testing = True
+    testing = False
     data_dir = "./dataset_rats"
     rat_ids = [10]
 
