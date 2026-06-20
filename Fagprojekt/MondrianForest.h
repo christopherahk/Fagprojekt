@@ -5,10 +5,10 @@
 // Mondrian Forest -- online random forest
 
 #ifndef MF_N_TREES
-#define MF_N_TREES 15 // Safe RAM ensemble size
+#define MF_N_TREES 10 // Safe RAM ensemble size
 #endif
 #ifndef MF_MAX_NODES
-#define MF_MAX_NODES 255 // Safe RAM depth (2^8 - 1)
+#define MF_MAX_NODES 511 // Safe RAM depth (2^8 - 1) 127 -> 255 -> 511
 #endif
 #ifndef MF_N_FEATURES
 #define MF_N_FEATURES 562 // 56 * 10 (local) + 2 (global)
@@ -19,7 +19,7 @@
 
 // Mondrian budget: controls max tree depth
 #ifndef MF_LAMBDA
-#define MF_LAMBDA 5.0f
+#define MF_LAMBDA 18.0f
 #endif
 // Laplace smoothing for probability estimates
 #ifndef MF_SMOOTH
@@ -104,6 +104,17 @@ public:
     }
     for (int c = 0; c < MF_N_CLASSES; c++)
       proba[c] /= MF_N_TREES;
+  }
+  void resetForest() {
+    totalSamples_ = 0;
+    for (int t = 0; t < MF_N_TREES; t++) {
+      trees_[t].nNodes = 0;
+      for (int f = 0; f < MF_N_FEATURES; f++) {
+        trees_[t].fMin[f] = mf_toQ88(127.0f);
+        trees_[t].fMax[f] = mf_toQ88(-128.0f);
+      }
+      allocNode(t, -1);
+    }
   }
 
   int totalNodes() const {

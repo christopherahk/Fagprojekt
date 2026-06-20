@@ -1,8 +1,8 @@
 #include "FeatureExtractor.h"
 
-#define MF_LAMBDA 6.0f
-#define MF_N_TREES 15
-#define MF_MAX_NODES 255
+#define MF_LAMBDA 18.0f
+#define MF_N_TREES 10
+#define MF_MAX_NODES 511
 #include "MondrianForest.h"
 #include <Arduino.h>
 
