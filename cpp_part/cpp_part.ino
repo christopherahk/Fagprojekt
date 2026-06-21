@@ -13,9 +13,6 @@
 
 bool testing = false;
 
-// Bayesian-optimised CNN weight: final = alpha*CNN + (1-alpha)*forest
-const float ENSEMBLE_ALPHA = 0.501f;
-
 // ── Network dimensions
 // ────────────────────────────────────────────────────────
 const int N_CHANNELS = 56;
