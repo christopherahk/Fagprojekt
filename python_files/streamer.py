@@ -7,7 +7,7 @@ import csv
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
-PORT = "COM8"
+PORT = "COM7"
 BAUD = 1000000
 RANDOM_SEED = 10
 
@@ -286,7 +286,8 @@ def stream_live(ser, windows, labels, csv_writer):
     running_correct = 0
     running_total   = 0
     running_cm      = np.zeros((N_CLASSES, N_CLASSES), dtype=np.int64)
-    correctness_list = []
+
+    y_pred_list = []
 
     pbar = tqdm(enumerate(combined), total=len(combined), desc="Live Streaming", unit="win")
 
@@ -306,7 +307,7 @@ def stream_live(ser, windows, labels, csv_writer):
         ser.write(one_hot.tobytes())
         ser.flush()
 
-        probs, pred_idx, is_correct, status = wait_for_answer(ser)
+        probs, pred_idx_parsed, is_correct, status = wait_for_answer(ser)
 
         if probs is not None and len(probs) == 3:
             weights = np.array([1, 1, 1])
@@ -314,16 +315,15 @@ def stream_live(ser, windows, labels, csv_writer):
             pred_idx = int(np.argmax(weighted_probs))
             confidence = float(np.max(probs))
         else:
+            pred_idx = pred_idx_parsed
             confidence = 0.0
 
         if pred_idx >= 0:
+            y_pred_list.append(pred_idx)
             running_total += 1
             if pred_idx == int(label):
                 running_correct += 1
             running_cm[int(label), pred_idx] += 1
-
-        if is_correct != -1:
-            correctness_list.append(is_correct)
 
         f1 = calculate_macro_f1(running_cm)
         acc = running_correct / running_total if running_total > 0 else 0.0
@@ -334,16 +334,29 @@ def stream_live(ser, windows, labels, csv_writer):
             f"{acc:.6f}", f"{f1:.6f}", status,
         ])
 
+        if running_total > 0:
+            pbar.set_postfix({"Acc": f"{acc*100:.2f}%", "F1": f"{f1:.4f}"})
+
+        if i > 0 and i % 100 == 0:
+            tqdm.write(f"Live progress: {i}/{len(windows)} | Running Acc: {acc*100:.2f}%")
+
+    y_true_trimmed = labels[:len(y_pred_list)]
+
+    correct_array = (y_true_trimmed == np.array(y_pred_list)).astype(int)
+
     out_dir = "./outputs"
     os.makedirs(out_dir, exist_ok=True)
-    np.savetxt(os.path.join(out_dir, "model_MF_correctness.txt"), np.array(correctness_list, dtype=int), fmt="%d")
+
+    txt_path = os.path.join(out_dir, "model_MF_correctness.txt")
+    np.savetxt(txt_path, correct_array, fmt="%d")
+    tqdm.write(f"\nSaved binary array to {txt_path} (Klar til McNemar test!)")
 
     final_acc = running_correct / running_total if running_total > 0 else 0.0
     final_f1  = calculate_macro_f1(running_cm)
-    print(f"\nLive Streaming Finished -- Final Acc: {final_acc*100:.2f}%  Final F1: {final_f1:.4f}")
+    print(f"Live Streaming Finished -- Final Acc: {final_acc*100:.2f}%  Final F1: {final_f1:.4f}")
 
 if __name__ == "__main__":
-    data_dir = "./dataset_rats"
+    data_dir = "./dataset_rats_50w"
 
     PRETRAIN_RATS = [9]
     LIVE_RAT      = [10]
