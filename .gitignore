@@ -91,3 +91,7 @@ python_files/intanutil/
 python_files/RAT10.npz
 python_files/splits_6rats/*
 python_files/splits_finetune/*
+
+python_files/splits_population/val.npz
+python_files/splits_population/train.npz
+python_files/splits_population/test.npz

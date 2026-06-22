@@ -17,7 +17,6 @@ def get_recording_duration(rhd_file):
     try:
         data = read_data(rhd_file)
 
-        # Get time array and calculate duration
         if 't_amplifier' in data and len(data['t_amplifier']) > 0:
             duration = data['t_amplifier'][-1] - data['t_amplifier'][0]
             num_samples = len(data['t_amplifier'])
@@ -36,7 +35,6 @@ def analyze_dorsi_plantar_recordings():
     data_dir = Path("data")
     results = []
 
-    # Find all DORSI_PLANTAR_PART1 and PART2 directories
     dorsi_dirs = sorted(glob.glob(str(data_dir / "RAT*_DORSI_PLANTAR_PART*")))
 
     print(f"Found {len(dorsi_dirs)} DORSI_PLANTAR directories")
@@ -45,7 +43,6 @@ def analyze_dorsi_plantar_recordings():
         rat_name = Path(dorsi_dir).name
         print(f"\nProcessing {rat_name}...")
 
-        # Find all .rhd files in this directory
         rhd_files = sorted(glob.glob(os.path.join(dorsi_dir, "*.rhd")))
 
         for rhd_file in rhd_files:
@@ -68,7 +65,6 @@ def analyze_dorsi_plantar_recordings():
             else:
                 print(f"✗ Error reading file")
 
-    # Save to CSV
     if results:
         output_file = "dorsi_plantar_recording_lengths.csv"
         with open(output_file, 'w', newline='') as f:
@@ -78,7 +74,6 @@ def analyze_dorsi_plantar_recordings():
 
         print(f"\n✓ Results saved to {output_file}")
 
-        # Print summary statistics
         print("\n=== SUMMARY ===")
         rats = {}
         for r in results:

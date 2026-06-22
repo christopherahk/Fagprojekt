@@ -118,7 +118,7 @@ def process_rat(rat):
     os.makedirs(output_dir, exist_ok=True)
 
 
-    rat_id_clean = rat.lower().replace("rat", "") # Sætter "RAT4" til "4"
+    rat_id_clean = rat.lower().replace("rat", "")
     output_path = f"{output_dir}/rat{rat_id_clean}.npz"
 
     np.savez(

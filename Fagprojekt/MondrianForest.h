@@ -2,13 +2,13 @@
 #include <math.h>
 #include <stdint.h>
 
-// Mondrian Forest -- online random forest
+// Mondrian Forest - online random forest
 
 #ifndef MF_N_TREES
-#define MF_N_TREES 10 // Safe RAM ensemble size
+#define MF_N_TREES 15 // Safe RAM ensemble size
 #endif
 #ifndef MF_MAX_NODES
-#define MF_MAX_NODES 511 // Safe RAM depth (2^8 - 1) 127 -> 255 -> 511
+#define MF_MAX_NODES 255 // Safe RAM depth (2^8 - 1) 127 -> 255 -> 511
 #endif
 #ifndef MF_N_FEATURES
 #define MF_N_FEATURES 562 // 56 * 10 (local) + 2 (global)

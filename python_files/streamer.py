@@ -135,7 +135,6 @@ def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6
     print("Building Live dataset (Rat 10)...")
     X_live, y_live = build_dataset(data_dir, live_rats)
 
-    # Rettet til StandardScaler for at matche CNN
     scaler = StandardScaler()
     n_ch = X_base.shape[1]
 
@@ -152,7 +151,6 @@ def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6
     np.savez(paths["val"],   X=X_va, y=y_base[splits["val"]])
     np.savez(paths["live"],  X=X_li, y=y_live)
 
-    # Gemmer mean og var i stedet for min/scale, da vi bruger StandardScaler nu
     np.savez("scaler.npz", mean=np.asarray(scaler.mean_), scale=np.asarray(scaler.scale_))
 
     return {s: np.load(p) for s, p in paths.items()}
