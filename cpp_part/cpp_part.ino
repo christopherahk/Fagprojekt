@@ -1,15 +1,20 @@
 #define SERIAL_RX_BUFFER_SIZE 256
 
+#include "tree_weights.h" // <-- Move it here, before any other project files
+#include <Arduino.h>
+
+#define SERIAL_RX_BUFFER_SIZE 256
 #include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
 #include "Conv2dlayer.h"
 #include "DenseLayer.h"
 #include "GetLoss.h"
 #include "trained_weights.h"
-#include <Arduino.h>
 
 bool testing = false;
 
+// ── Network dimensions
+// ────────────────────────────────────────────────────────
 const int N_CHANNELS = 56;
 const int SEQ_LEN = 16;
 const int N_CLASSES = 3;
@@ -22,6 +27,8 @@ const bool FREEZE_CONV = false;
 const float INITIAL_LR = 0.002f;
 const float LR_DECAY = 0.95f;
 
+// ── Conv-1
+// ────────────────────────────────────────────────────────────────────
 const int C1_FILTERS = 16;
 const int C1_KH = N_CHANNELS;
 const int C1_KW = 3;
@@ -32,6 +39,8 @@ const int C1_PAD_W = 1;
 const int C1_OUT_H = (N_CHANNELS + 2 * C1_PAD_H - C1_KH) / C1_SH + 1;
 const int C1_OUT_W = (SEQ_LEN + 2 * C1_PAD_W - C1_KW) / C1_SW + 1;
 
+// ── Conv-2
+// ────────────────────────────────────────────────────────────────────
 const int C2_FILTERS = 32;
 const int C2_KH = C1_FILTERS;
 const int C2_KW = 3;
@@ -46,12 +55,18 @@ const int POOL_OUT = C2_FILTERS;
 const int HIDDEN_SIZE = 16;
 const int OUTPUT_SIZE = N_CLASSES;
 
+// ── Static buffers
+// ────────────────────────────────────────────────────────────
 static float values[N_FLOATS];
 static Tensor flat(1, POOL_OUT);
 static Tensor dFlat(1, POOL_OUT);
 static Tensor input(N_CHANNELS, SEQ_LEN);
 static Tensor yTrue(1, OUTPUT_SIZE);
 
+static float blendedProbs[N_CLASSES];
+
+// ── Layers
+// ────────────────────────────────────────────────────────────────────
 Conv2DLayer conv1(N_CHANNELS, SEQ_LEN, C1_FILTERS, C1_KH, C1_KW, C1_SH, C1_SW,
                   C1_PAD_H, C1_PAD_W);
 ReLU reluConv1;
@@ -70,19 +85,9 @@ static float currentLR = INITIAL_LR;
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
-static int tp_counts[N_CLASSES] = {0};
-static int fp_counts[N_CLASSES] = {0};
-static int tn_counts[N_CLASSES] = {0};
-static int fn_counts[N_CLASSES] = {0};
-
-void resetAnovaCounters() {
-  for (int i = 0; i < N_CLASSES; i++) {
-    tp_counts[i] = 0;
-    fp_counts[i] = 0;
-    tn_counts[i] = 0;
-    fn_counts[i] = 0;
-  }
-}
+// ══════════════════════════════════════════════════════════════════════════════
+// Weight I/O
+// ══════════════════════════════════════════════════════════════════════════════
 
 void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
@@ -99,6 +104,7 @@ void exportModel() {
   Serial.println("START_EXPORT");
   Serial.println("#ifndef TRAINED_WEIGHTS_H");
   Serial.println("#define TRAINED_WEIGHTS_H\n");
+
   auto printTensor = [](const char *name, Tensor &t) {
     Serial.print("float ");
     Serial.print(name);
@@ -126,8 +132,11 @@ void exportModel() {
   Serial.println("END_EXPORT");
 }
 
+// ── Logging helpers
+// ───────────────────────────────────────────────────────────
+
 void printProbs(int labelIdx, float loss) {
-  Tensor probs = getLoss.activation.output;
+  const Tensor &probs = getLoss.activation.output;
   Serial.print("Probs: ");
   for (int i = 0; i < OUTPUT_SIZE; i++) {
     Serial.print(probs.data[i], 2);
@@ -140,6 +149,22 @@ void printProbs(int labelIdx, float loss) {
   Serial.println(loss, 2);
 }
 
+void printBlendedProbs(int labelIdx, float loss, const float *blended) {
+  Serial.print("Ensemble: ");
+  for (int i = 0; i < OUTPUT_SIZE; i++) {
+    Serial.print(blended[i], 2);
+    if (i < OUTPUT_SIZE - 1)
+      Serial.print(", ");
+  }
+  Serial.print(" | Label: ");
+  Serial.print(labelIdx);
+  Serial.print(" | CNN_Loss: ");
+  Serial.println(loss, 2);
+}
+
+// ── Core window processing
+// ────────────────────────────────────────────────────
+
 void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
   for (int i = 0; i < N_FLOATS; i++)
     input.data[i] = data[i];
@@ -150,6 +175,7 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
       labelIdx = i;
   }
 
+  // ── CNN forward pass ───────────────────────────────────────────────────────
   conv1.forward(input);
   reluConv1.forward(conv1.output);
   conv2.forward(reluConv1.output);
@@ -168,6 +194,18 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
 
   float loss = getLoss.forward(layer2.output, yTrue);
 
+  // ── Ensemble blend ─────────────────────────────────────────────────────────
+  // Get predictions from the Random Forest (defined in tree_weights.h)
+  float forestProbs[TREE_N_CLASSES];
+  treeForestPredict(input.data, forestProbs);
+
+  // Blend CNN and Forest probabilities
+  for (int i = 0; i < N_CLASSES; i++) {
+    blendedProbs[i] = (ENSEMBLE_ALPHA * getLoss.activation.output.data[i]) +
+                      ((1.0f - ENSEMBLE_ALPHA) * forestProbs[i]);
+  }
+
+  // ── Backward / update (CNN only; forest is frozen) ────────────────────────
   if (!testing) {
     getLoss.backward(yTrue);
     layer2.backward(getLoss.dInputs);
@@ -175,6 +213,7 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     layer1.backward(relu1.dInputs);
 
     memcpy(dFlat.data, layer1.dInputs.data, POOL_OUT * sizeof(float));
+
     if (reluConv2.dInputs.rowCount != C2_FILTERS ||
         reluConv2.dInputs.colCount != C2_OUT_W) {
       reluConv2.dInputs = Tensor(C2_FILTERS, C2_OUT_W);
@@ -205,36 +244,33 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
       layer2.update(scaledLR);
       batchCounter = 0;
     }
+
+    if (wCount % 100 == 0) {
+      printProbs(labelIdx, loss);
+    }
   }
 
-  if (wCount % 100 == 0 && !testing) {
-    printProbs(labelIdx, loss);
-  }
-
+  // ── Evaluation: blended ensemble decides the class ────────────────────────
   if (testing) {
     total_loss += loss;
-    Tensor probs = getLoss.activation.output;
-    int pred = 0;
-    for (int i = 1; i < N_CLASSES; i++) {
-      if (probs.data[i] > probs.data[pred])
-        pred = i;
-    }
-    if (pred == labelIdx)
-      total_correct++;
 
-    for (int i = 0; i < N_CLASSES; i++) {
-      if (i == labelIdx) {
-        if (pred == labelIdx) tp_counts[i]++;
-        else                  fn_counts[i]++;
-      } else {
-        if (pred == i) fp_counts[i]++;
-        else           tn_counts[i]++;
+    int pred = 0;
+    float best_val = blendedProbs[0];
+    for (int i = 1; i < N_CLASSES; i++) {
+      if (blendedProbs[i] > best_val) {
+        best_val = blendedProbs[i];
+        pred = i;
       }
     }
 
-    printProbs(labelIdx, loss);
+    if (pred == labelIdx)
+      total_correct++;
+    printBlendedProbs(labelIdx, loss, blendedProbs);
   }
 }
+
+// ── Serial I/O
+// ────────────────────────────────────────────────────────────────
 
 void get_data() {
   int received = 0;
@@ -256,13 +292,12 @@ void get_data() {
       ;
     label[i] = Serial.read();
   }
-  unsigned long t0 = micros();
   processWindow(values, label, windowCount++);
-  unsigned long t1 = micros();
-  Serial.print("PROC_TIME:");
-  Serial.println(t1 - t0);
   Serial.println("TRAIN");
 }
+
+// ── Arduino entry points
+// ──────────────────────────────────────────────────────
 
 void setup() {
   Serial.begin(1000000);
@@ -304,7 +339,6 @@ void loop() {
       total_correct = 0;
       windowCount = 0;
       currentLR *= LR_DECAY;
-      resetAnovaCounters();
       return;
     }
 
@@ -313,20 +347,6 @@ void loop() {
       Serial.println((float)total_loss / windowCount, 4);
       Serial.print("VAL_ACC:");
       Serial.println((float)total_correct / windowCount, 4);
-
-      for (int i = 0; i < N_CLASSES; i++) {
-        Serial.print("ANOVA_CLASS:");
-        Serial.print(i);
-        Serial.print(",TP:");
-        Serial.print(tp_counts[i]);
-        Serial.print(",FP:");
-        Serial.print(fp_counts[i]);
-        Serial.print(",TN:");
-        Serial.print(tn_counts[i]);
-        Serial.print(",FN:");
-        Serial.println(fn_counts[i]);
-      }
-
       testing = false;
       total_loss = 0.0f;
       total_correct = 0;
@@ -339,7 +359,6 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
-      resetAnovaCounters();
       return;
     }
   }
