@@ -343,7 +343,7 @@ def stream_live(ser, windows, labels, csv_writer):
     print(f"\nLive Streaming Finished -- Final Acc: {final_acc*100:.2f}%  Final F1: {final_f1:.4f}")
 
 if __name__ == "__main__":
-    data_dir = "./dataset_rats_50w"
+    data_dir = "./dataset_rats"
 
     PRETRAIN_RATS = [9]
     LIVE_RAT      = [10]

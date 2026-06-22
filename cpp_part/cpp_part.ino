@@ -5,7 +5,7 @@
 #include "MondrianForest.h"
 #include <Arduino.h>
 
-bool testing = false;
+bool testing = true;
 
 const int N_CHANNELS = 56;
 const int WINDOW = 32;
@@ -94,6 +94,7 @@ void processWindow(int labelIdx, bool doTrain, bool doValidate) {
       val_correct++;
   }
 
+  // Send probabilities and window correctness back to Python
   Serial.print("Probs: ");
   for (int i = 0; i < N_CLASSES; i++) {
     Serial.print(proba[i], 4);
