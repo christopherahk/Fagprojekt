@@ -288,6 +288,7 @@ def run_test(ser, X_test, y_test, scaler):
         pass
 
     y_pred = []
+    proc_times = []
     first_send_consumed = True
 
     for i, (window, label) in enumerate(zip(X_test, y_test)):
@@ -315,6 +316,8 @@ def run_test(ser, X_test, y_test, scaler):
                 probs_str = line.split("|")[0].replace("Probs:", "").strip()
                 probs = [float(p) for p in probs_str.split(",")]
                 pred = int(np.argmax(probs))
+            if line.startswith("PROC_TIME"):
+                proc_times.append(int(line.split(":")[1]))
             if line.startswith("TRAIN"):
                 break
 
@@ -335,6 +338,13 @@ def run_test(ser, X_test, y_test, scaler):
             break
         if line.startswith("VAL_LOSS"):
             print(line)
+
+    if proc_times:
+        times = np.array(proc_times, dtype=np.float64)
+        mean = times.mean()
+        std = times.std(ddof=1)
+        ci = 1.96 * std / np.sqrt(len(times))
+        print(f"Processing time (microseconds): mean={mean:.1f}, 95% CI=[{mean - ci:.1f}, {mean + ci:.1f}], n={len(times)}")
 
     class_names = list(CLASSES.keys())
     cm = confusion_matrix(y_test[:len(y_pred)], y_pred)
