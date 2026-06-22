@@ -41,6 +41,7 @@ def wait_for_send(ser, timeout_s=10.0):
 def wait_for_answer(ser, timeout_s=5.0):
     probs    = None
     pred_idx = -1
+    is_correct = -1
     status   = "timeout"
     deadline = time.monotonic() + timeout_s
 
@@ -50,8 +51,12 @@ def wait_for_answer(ser, timeout_s=5.0):
             continue
         if line.startswith("Probs:"):
             try:
-                raw  = line.split(":", 1)[1].strip()
+                base_part = line.split("|")[0] if "|" in line else line
+                raw  = base_part.split(":", 1)[1].strip()
                 probs = np.array([float(v.strip()) for v in raw.split(",")], dtype=np.float32)
+
+                if "Correct:" in line:
+                    is_correct = int(line.split("Correct:")[1].strip())
             except Exception:
                 pass
         elif line.startswith("Pred:"):
@@ -63,15 +68,14 @@ def wait_for_answer(ser, timeout_s=5.0):
                 pass
         elif line == "TRAIN":
             status = "train"
-            return probs, pred_idx, status
+            return probs, pred_idx, is_correct, status
         elif line == "INFER":
             status = "infer"
-            return probs, pred_idx, status
+            return probs, pred_idx, is_correct, status
 
-    return probs, pred_idx, status
+    return probs, pred_idx, is_correct, status
 
 def send_signal(ser, window):
-    """Sender float32 arrays i chunks af 256 bytes."""
     data_bytes = window.astype(np.float32).tobytes()
     for j in range(0, len(data_bytes), CHUNK_SIZE):
         chunk = data_bytes[j:j + CHUNK_SIZE]
@@ -81,19 +85,16 @@ def send_signal(ser, window):
     time.sleep(0.002)
 
 def prepare_dataset(rms_data, angles_ds):
-
     rms_data = rms_data[:N_CHANNELS, :]
     X = rms_data.T
 
-
     y = np.full(len(angles_ds), 2, dtype=np.int64)
-    y[angles_ds >  2.0] = 1   # Plantar
-    y[angles_ds < -2.0] = 0   # Dorsi
+    y[angles_ds >  2.0] = 1
+    y[angles_ds < -2.0] = 0
 
     X_seq, y_seq = [], []
     for i in range(SEQ_LEN, len(X), SUBSAMPLE_RATE):
         X_seq.append(X[i - SEQ_LEN:i].T)
-
         y_seq.append(y[i - 1])
 
     return np.array(X_seq), np.array(y_seq)
@@ -109,7 +110,8 @@ def build_dataset(data_dir, rat_ids):
         if os.path.exists(path):
             rms, ang = load_rat(path)
             X, y = prepare_dataset(rms, ang)
-            X_all.append(X); y_all.append(y)
+            X_all.append(X)
+            y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
 
 def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6rats", seed=RANDOM_SEED):
@@ -125,7 +127,7 @@ def load_or_build_splits(data_dir, pretrain_rats, live_rats, out_dir="./splits_6
 
     rng = np.random.default_rng(seed)
     idx = rng.permutation(len(X_base))
-    train_end = int(0.85 * len(idx)) # 85% train, 15% val
+    train_end = int(0.85 * len(idx))
 
     splits = {
         "train": idx[:train_end],
@@ -193,7 +195,7 @@ def stream_epoch(ser, epoch_idx, windows, labels, csv_writer):
         ser.write(one_hot.tobytes())
         ser.flush()
 
-        probs, pred_idx, status = wait_for_answer(ser)
+        probs, pred_idx, is_correct, status = wait_for_answer(ser)
         confidence = float(np.max(probs)) if probs is not None else 0.0
 
         if pred_idx >= 0:
@@ -246,7 +248,7 @@ def run_validation(ser, X_val, y_val):
         ser.write(one_hot.tobytes())
         ser.flush()
 
-        probs, pred_idx, status = wait_for_answer(ser)
+        probs, pred_idx, is_correct, status = wait_for_answer(ser)
 
         if pred_idx >= 0:
             val_running_total += 1
@@ -277,37 +279,6 @@ def run_validation(ser, X_val, y_val):
 
     return val_lines
 
-def save_model(ser, filename="trained_weights.h"):
-    print("Requesting model export...")
-    ser.reset_input_buffer()
-    ser.write(b"EX")
-    ser.flush()
-    with open(filename, "w") as f:
-        started = False
-        while True:
-            line = readline(ser)
-            if "START_EXPORT" in line: started = True; continue
-            if "END_EXPORT"   in line: break
-            if started: f.write(line + "\n")
-    print(f"Model saved to {filename}")
-    ser.write(b"R")
-    ser.flush()
-
-def early_stopping_check(ser, val_lines):
-    global minimum_val_loss, val_loss_counter
-    for line in val_lines:
-        if "VAL_LOSS" in line:
-            try:
-                loss = float(line.split(":")[1])
-                if loss < minimum_val_loss:
-                    minimum_val_loss = loss
-                    val_loss_counter = 0
-                    save_model(ser)
-                else:
-                    val_loss_counter += 1
-            except Exception:
-                pass
-
 def stream_live(ser, windows, labels, csv_writer):
     print(f"\n--- STARTING LIVE ONLINE LEARNING (Chronological) ---")
     combined = list(zip(windows, labels))
@@ -315,6 +286,7 @@ def stream_live(ser, windows, labels, csv_writer):
     running_correct = 0
     running_total   = 0
     running_cm      = np.zeros((N_CLASSES, N_CLASSES), dtype=np.int64)
+    correctness_list = []
 
     pbar = tqdm(enumerate(combined), total=len(combined), desc="Live Streaming", unit="win")
 
@@ -327,22 +299,15 @@ def stream_live(ser, windows, labels, csv_writer):
         ser.flush()
         send_signal(ser, window)
 
-
         one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
         one_hot[label] = 1
-
-        # one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
-        # if i < 450:
-        #     one_hot[label] = 1
 
         ser.write(b"L")
         ser.write(one_hot.tobytes())
         ser.flush()
 
-        probs, pred_idx, status = wait_for_answer(ser)
-        CONFIDENCE_THRESHOLD = 0.45
+        probs, pred_idx, is_correct, status = wait_for_answer(ser)
 
-        confidence = float(np.max(probs)) if probs is not None else 0.0
         if probs is not None and len(probs) == 3:
             weights = np.array([1, 1, 1])
             weighted_probs = probs * weights
@@ -357,6 +322,9 @@ def stream_live(ser, windows, labels, csv_writer):
                 running_correct += 1
             running_cm[int(label), pred_idx] += 1
 
+        if is_correct != -1:
+            correctness_list.append(is_correct)
+
         f1 = calculate_macro_f1(running_cm)
         acc = running_correct / running_total if running_total > 0 else 0.0
 
@@ -366,8 +334,9 @@ def stream_live(ser, windows, labels, csv_writer):
             f"{acc:.6f}", f"{f1:.6f}", status,
         ])
 
-        if running_total > 0:
-            pbar.set_postfix({"Live_Acc": f"{acc*100:.2f}%", "Live_F1": f"{f1:.4f}"})
+    out_dir = "./outputs"
+    os.makedirs(out_dir, exist_ok=True)
+    np.savetxt(os.path.join(out_dir, "model_MF_correctness.txt"), np.array(correctness_list, dtype=int), fmt="%d")
 
     final_acc = running_correct / running_total if running_total > 0 else 0.0
     final_f1  = calculate_macro_f1(running_cm)
@@ -401,7 +370,7 @@ if __name__ == "__main__":
     while time.monotonic() < deadline:
         line = readline(ser)
         if line == "READY":
-            ser.write(b"G")
+            ser.write(b"G\n")
             ser.flush()
             arduino_ready = True
             print("Handshake complete!")
@@ -415,38 +384,13 @@ if __name__ == "__main__":
     time.sleep(0.5)
     ser.reset_input_buffer()
 
-    # try:
-    #     print("\n=== PHASE 1: PRETRAIN ON RATS 4-9 ===")
-    #     for epoch in range(EPOCHS):
-    #         stream_epoch(ser, epoch, X_train, y_train, writer)
-    #         f_csv.flush()
-
-    #         val_lines = run_validation(ser, X_val, y_val)
-    #         early_stopping_check(ser, val_lines)
-
-    #         if val_loss_counter >= 5:
-    #             print("\nEarly stopping triggered. Model pretraining stopped.")
-    #             break
-
-    #     print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
-
-    #     stream_live(ser, X_live, y_live, writer)
-    #     f_csv.flush()
-
-    # except KeyboardInterrupt:
-    #     print("\nInterrupted.")
-
     try:
         print("\n=== PHASE 2: LIVE ONLINE LEARNING ON RAT 10 ===")
-
         stream_live(ser, X_live, y_live, writer)
         f_csv.flush()
-
         val_lines = run_validation(ser, X_val, y_val)
-
         for line in val_lines:
             print(f"  --> {line}")
-
     except KeyboardInterrupt:
         print("\nInterrupted.")
 
