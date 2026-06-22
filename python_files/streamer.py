@@ -347,11 +347,11 @@ def run_test(ser, X_test, y_test, scaler):
     print(f"Test accuracy: {cm.diagonal().sum() / cm.sum():.4f}")
 
 if __name__ == "__main__":
-    testing = True
+    testing = False
     data_dir = "./dataset_rats"
     rat_ids = [10]
 
-    splits = load_or_build_splits(data_dir, rat_ids)
+    splits = load_or_build_splits_first_shuffle(data_dir, rat_ids)
     X_train, y_train = splits["train"]["X"], splits["train"]["y"]
     X_val, y_val = splits["val"]["X"], splits["val"]["y"]
     X_test, y_test = splits["test"]["X"], splits["test"]["y"]
