@@ -1,9 +1,8 @@
 #define SERIAL_RX_BUFFER_SIZE 256
 
-#include "tree_weights.h" // <-- Move it here, before any other project files
 #include <Arduino.h>
+#include "tree_weights.h" // Keep this at the top
 
-#define SERIAL_RX_BUFFER_SIZE 256
 #include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
 #include "Conv2dlayer.h"
@@ -11,10 +10,10 @@
 #include "GetLoss.h"
 #include "trained_weights.h"
 
-bool testing = false;
+bool testing = true;
 
 // Bayesian-optimised CNN weight: final = alpha*CNN + (1-alpha)*forest
-const float ENSEMBLE_ALPHA = 0.501f;
+const float ENSEMBLE_ALPHA = 0.99f;
 
 // ── Network dimensions
 // ────────────────────────────────────────────────────────
