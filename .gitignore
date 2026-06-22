@@ -67,6 +67,7 @@ build/
 splits/
 splits_6rats/
 splits_finetune/
+splits_population/
 data/*
 dataset_rats/
 dataset_rats_50w/

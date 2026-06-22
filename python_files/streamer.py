@@ -223,6 +223,11 @@ def run_validation(ser, X_val, y_val, scaler):
         pass
     first_send_consumed = True
 
+    y_val_pred = []
+
+    with open("results_val.txt", "a") as f:
+        f.write("\n--- Epoch Window Details ---\n")
+
     for i, (window, label) in enumerate(zip(X_val, y_val)):
         if not first_send_consumed:
             while readline(ser).strip() != "SEND":
@@ -240,7 +245,25 @@ def run_validation(ser, X_val, y_val, scaler):
         one_hot[label] = 1
         ser.write(one_hot.tobytes())
         ser.flush()
-        wait_for_answer(ser, i)
+
+        # Parse the live answer for the window instead of calling generic wait_for_answer
+        pred = None
+        while True:
+            line = readline(ser)
+            if line.startswith("Probs"):
+                probs_str = line.split("|")[0].replace("Probs:", "").strip()
+                probs = [float(p) for p in probs_str.split(",")]
+                pred = int(np.argmax(probs))
+
+                # Append individual window output line to file
+                with open("results_val.txt", "a") as f:
+                    f.write(f"Win {i} -> Pred: {pred}, True: {label} | {line}\n")
+
+            if line.startswith("VAL_WINDOW_DONE") or line.startswith("TRAIN"):
+                break
+
+        if pred is not None:
+            y_val_pred.append(pred)
 
         if i % 100 == 0:
             print(f"Validation progress: {i}/{len(X_val)}")
@@ -256,8 +279,7 @@ def run_validation(ser, X_val, y_val, scaler):
             print(line)
             lines.append(line)
             with open("results_val.txt", "a") as f:
-                f.writelines(line + '\n')
-                f.close()
+                f.write(line + '\n')
         if line.startswith("VAL_ACC"):
             break
 
@@ -290,36 +312,39 @@ def run_test(ser, X_test, y_test, scaler):
     y_pred = []
     first_send_consumed = True
 
-    for i, (window, label) in enumerate(zip(X_test, y_test)):
-        if not first_send_consumed:
-            while readline(ser).strip() != "SEND":
-                pass
-        first_send_consumed = False
+    with open("results_test_per_window.txt", "w") as results_file:
+        for i, (window, label) in enumerate(zip(X_test, y_test)):
+            if not first_send_consumed:
+                while readline(ser).strip() != "SEND":
+                    pass
+            first_send_consumed = False
 
-        window_scaled = scaler.transform(window.T).T
-        data_bytes = window_scaled.astype(np.float32).tobytes()
-        for j in range(0, len(data_bytes), CHUNK_SIZE):
-            ser.write(data_bytes[j:j + CHUNK_SIZE])
+            window_scaled = scaler.transform(window.T).T
+            data_bytes = window_scaled.astype(np.float32).tobytes()
+            for j in range(0, len(data_bytes), CHUNK_SIZE):
+                ser.write(data_bytes[j:j + CHUNK_SIZE])
+                ser.flush()
+                readline(ser)
+
+            one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
+            one_hot[label] = 1
+            ser.write(one_hot.tobytes())
             ser.flush()
-            readline(ser)
 
-        one_hot = np.zeros(N_CLASSES, dtype=np.uint8)
-        one_hot[label] = 1
-        ser.write(one_hot.tobytes())
-        ser.flush()
+            pred = None
+            while True:
+                line = readline(ser)
+                if line.startswith("Probs"):
+                    probs_str = line.split("|")[0].replace("Probs:", "").strip()
+                    probs = [float(p) for p in probs_str.split(",")]
+                    pred = int(np.argmax(probs))
+                if line.startswith("TRAIN"):
+                    break
 
-        pred = None
-        while True:
-            line = readline(ser)
-            if line.startswith("Probs"):
-                probs_str = line.split("|")[0].replace("Probs:", "").strip()
-                probs = [float(p) for p in probs_str.split(",")]
-                pred = int(np.argmax(probs))
-            if line.startswith("TRAIN"):
-                break
-
-        if pred is not None:
-            y_pred.append(pred)
+            if pred is not None:
+                y_pred.append(pred)
+                correct = 1 if pred == label else 0
+                results_file.write(f"{correct}\n")
 
         if i % 100 == 0:
             print(f"Test progress: {i}/{len(X_test)}")
@@ -347,7 +372,7 @@ def run_test(ser, X_test, y_test, scaler):
     print(f"Test accuracy: {cm.diagonal().sum() / cm.sum():.4f}")
 
 if __name__ == "__main__":
-    testing = False
+    testing = True
     data_dir = "./dataset_rats"
     rat_ids = [10]
 

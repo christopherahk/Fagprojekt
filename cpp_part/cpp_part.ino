@@ -212,7 +212,9 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
     if (pred == labelIdx)
       total_correct++;
+
     printProbs(labelIdx, loss);
+    Serial.println("VAL_WINDOW_DONE");
   }
 }
 
