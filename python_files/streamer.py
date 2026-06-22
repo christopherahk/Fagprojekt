@@ -11,6 +11,7 @@ import time
 
 PORT = "COM3"
 BAUD = 1_000_000
+MODEL_NAME = "model_CNN"
 
 DOWNSAMPLE_FACTOR = 50
 N_CHANNELS = 56
@@ -89,7 +90,6 @@ def save_model_to_file(ser, filename="cpp_part/trained_weights.h"):
             if started:
                 f.write(line + "\n")
 
-            #i am going thorugh changes - Nanak
     print(f"Model saved to {filename}")
     ser.write(b'R')
     ser.flush()
@@ -155,35 +155,6 @@ def build_dataset(data_dir, rat_ids):
             X_all.append(X)
             y_all.append(y)
     return np.concatenate(X_all), np.concatenate(y_all)
-
-def load_or_build_splits_first_shuffle(data_dir, rat_ids, out_dir="./splits_6rats", seed=RANDOM_SEED):
-    os.makedirs(out_dir, exist_ok=True)
-    paths = {s: os.path.join(out_dir, f"{s}.npz") for s in ("train", "val", "test")}
-
-    if all(os.path.exists(p) for p in paths.values()):
-        print("Splits already exist, loading")
-        return {s: np.load(p) for s, p in paths.items()}
-
-    print("Building dataset")
-    X, y = build_dataset(data_dir, rat_ids)
-    print(f"Total windows: {X.shape}")
-
-    rng = np.random.default_rng(seed)
-    idx = rng.permutation(len(X))
-    train_end = int(0.70 * len(idx))
-    val_end = int(0.85 * len(idx))
-
-    splits = {
-        "train": idx[:train_end],
-        "val": idx[train_end:val_end],
-        "test": idx[val_end:],
-    }
-
-    for name, i in splits.items():
-        np.savez(paths[name], X=X[i], y=y[i])
-        print(f"{name}: {X[i].shape}")
-
-    return {s: np.load(p) for s, p in paths.items()}
 
 def load_or_build_splits(data_dir, rat_ids, out_dir="./splits_finetune"):
     os.makedirs(out_dir, exist_ok=True)
@@ -257,10 +228,6 @@ def run_validation(ser, X_val, y_val, scaler):
             lines.append(line)
             with open("results_val.txt", "a") as f:
                 f.writelines(line + '\n')
-                f.close()
-        if line.startswith("VAL_ACC"):
-            break
-
     return lines
 
 def early_stopping(ser, lines):
@@ -333,28 +300,27 @@ def run_test(ser, X_test, y_test, scaler):
     deadline = time.time() + 10
     while time.time() < deadline:
         line = readline(ser)
-        if line.startswith("VAL_ACC"):
-            print(line)
-            break
-        if line.startswith("VAL_LOSS"):
+        if line.startswith("VAL_ACC") or line.startswith("VAL_LOSS"):
             print(line)
 
-    if proc_times:
-        times = np.array(proc_times, dtype=np.float64)
-        mean = times.mean()
-        std = times.std(ddof=1)
-        ci = 1.96 * std / np.sqrt(len(times))
-        print(f"Processing time (microseconds): mean={mean:.1f}, 95% CI=[{mean - ci:.1f}, {mean + ci:.1f}], n={len(times)}")
+    y_test_trimmed = y_test[:len(y_pred)]
+    correct_array = (y_test_trimmed == np.array(y_pred)).astype(int)
+
+    out_dir = "./outputs"
+    os.makedirs(out_dir, exist_ok=True)
+
+    txt_path = os.path.join(out_dir, f"{MODEL_NAME}_correctness.txt")
+    np.savetxt(txt_path, correct_array, fmt="%d")
+    print(f"Saved binary array to {txt_path}")
 
     class_names = list(CLASSES.keys())
-    cm = confusion_matrix(y_test[:len(y_pred)], y_pred)
+    cm = confusion_matrix(y_test_trimmed, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
     disp.plot(cmap="Blues")
     plt.title("Test Set Confusion Matrix")
     plt.tight_layout()
-    plt.savefig("./outputs/confusion_matrix_no_pretrain.png", dpi=150)
+    plt.savefig(os.path.join(out_dir, f"confusion_matrix_{MODEL_NAME}.png"), dpi=150)
     plt.show()
-    print(f"Test accuracy: {cm.diagonal().sum() / cm.sum():.4f}")
 
 if __name__ == "__main__":
     testing = True

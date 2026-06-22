@@ -51,7 +51,6 @@ static Tensor flat(1, POOL_OUT);
 static Tensor dFlat(1, POOL_OUT);
 static Tensor input(N_CHANNELS, SEQ_LEN);
 static Tensor yTrue(1, OUTPUT_SIZE);
-
 Conv2DLayer conv1(N_CHANNELS, SEQ_LEN, C1_FILTERS, C1_KH, C1_KW, C1_SH, C1_SW,
                   C1_PAD_H, C1_PAD_W);
 ReLU reluConv1;
@@ -71,6 +70,20 @@ static float currentLR = INITIAL_LR;
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
+static int tp_counts[N_CLASSES] = {0};
+static int fp_counts[N_CLASSES] = {0};
+static int tn_counts[N_CLASSES] = {0};
+static int fn_counts[N_CLASSES] = {0};
+
+void resetAnovaCounters() {
+  for (int i = 0; i < N_CLASSES; i++) {
+    tp_counts[i] = 0;
+    fp_counts[i] = 0;
+    tn_counts[i] = 0;
+    fn_counts[i] = 0;
+  }
+}
+
 void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
   memcpy(conv1.biases.data, conv1_b, conv1.biases.size * sizeof(float));
@@ -86,7 +99,6 @@ void exportModel() {
   Serial.println("START_EXPORT");
   Serial.println("#ifndef TRAINED_WEIGHTS_H");
   Serial.println("#define TRAINED_WEIGHTS_H\n");
-
   auto printTensor = [](const char *name, Tensor &t) {
     Serial.print("float ");
     Serial.print(name);
@@ -131,7 +143,6 @@ void printProbs(int labelIdx, float loss) {
 void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
   for (int i = 0; i < N_FLOATS; i++)
     input.data[i] = data[i];
-
   int labelIdx = -1;
   for (int i = 0; i < N_CLASSES; i++) {
     yTrue.data[i] = (label[i] == 1) ? 1.0f : 0.0f;
@@ -156,7 +167,6 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
   layer2.forward(relu1.output);
 
   float loss = getLoss.forward(layer2.output, yTrue);
-
   if (!testing) {
     getLoss.backward(yTrue);
     layer2.backward(getLoss.dInputs);
@@ -164,7 +174,6 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     layer1.backward(relu1.dInputs);
 
     memcpy(dFlat.data, layer1.dInputs.data, POOL_OUT * sizeof(float));
-
     if (reluConv2.dInputs.rowCount != C2_FILTERS ||
         reluConv2.dInputs.colCount != C2_OUT_W) {
       reluConv2.dInputs = Tensor(C2_FILTERS, C2_OUT_W);
@@ -211,6 +220,21 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
     if (pred == labelIdx)
       total_correct++;
+
+    for (int i = 0; i < N_CLASSES; i++) {
+      if (i == labelIdx) {
+        if (pred == labelIdx)
+          tp_counts[i]++;
+        else
+          fn_counts[i]++;
+      } else {
+        if (pred == i)
+          fp_counts[i]++;
+        else
+          tn_counts[i]++;
+      }
+    }
+
     printProbs(labelIdx, loss);
   }
 }
@@ -281,6 +305,7 @@ void loop() {
       total_correct = 0;
       windowCount = 0;
       currentLR *= LR_DECAY;
+      resetAnovaCounters();
       return;
     }
     if (c == 'D') {
@@ -288,6 +313,20 @@ void loop() {
       Serial.println((float)total_loss / windowCount, 4);
       Serial.print("VAL_ACC:");
       Serial.println((float)total_correct / windowCount, 4);
+
+      for (int i = 0; i < N_CLASSES; i++) {
+        Serial.print("ANOVA_CLASS:");
+        Serial.print(i);
+        Serial.print(",TP:");
+        Serial.print(tp_counts[i]);
+        Serial.print(",FP:");
+        Serial.print(fp_counts[i]);
+        Serial.print(",TN:");
+        Serial.print(tn_counts[i]);
+        Serial.print(",FN:");
+        Serial.println(fn_counts[i]);
+      }
+
       testing = false;
       total_loss = 0.0f;
       total_correct = 0;
@@ -299,6 +338,7 @@ void loop() {
       total_loss = 0.0f;
       total_correct = 0;
       windowCount = 0;
+      resetAnovaCounters();
       return;
     }
   }
