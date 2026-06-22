@@ -1,7 +1,7 @@
 #define SERIAL_RX_BUFFER_SIZE 256
 
 #include <Arduino.h>
-#include "tree_weights.h" // Keep this at the top
+#include "tree_weights.h"
 
 #include "Activations.h"
 #include "CategoricalCrossEntropyLoss.h"
@@ -11,27 +11,17 @@
 #include "trained_weights.h"
 
 bool testing = true;
-
-
-// Bayesian-optimised CNN weight: final = alpha*CNN + (1-alpha)*forest
-const float ENSEMBLE_ALPHA = 0.99f;
-
-// ── Network dimensions
-// ────────────────────────────────────────────────────────
+const float ENSEMBLE_ALPHA = 0.501f;
 const int N_CHANNELS = 56;
 const int SEQ_LEN = 16;
 const int N_CLASSES = 3;
 const int N_FLOATS = N_CHANNELS * SEQ_LEN;
 const int BYTES_NEEDED = N_FLOATS * sizeof(float);
 const int CHUNK_SIZE = 256;
-
 const int BATCH_SIZE = 64;
 const bool FREEZE_CONV = false;
 const float INITIAL_LR = 0.002f;
 const float LR_DECAY = 0.95f;
-
-// ── Conv-1
-// ────────────────────────────────────────────────────────────────────
 const int C1_FILTERS = 16;
 const int C1_KH = N_CHANNELS;
 const int C1_KW = 3;
@@ -41,9 +31,6 @@ const int C1_PAD_H = 0;
 const int C1_PAD_W = 1;
 const int C1_OUT_H = (N_CHANNELS + 2 * C1_PAD_H - C1_KH) / C1_SH + 1;
 const int C1_OUT_W = (SEQ_LEN + 2 * C1_PAD_W - C1_KW) / C1_SW + 1;
-
-// ── Conv-2
-// ────────────────────────────────────────────────────────────────────
 const int C2_FILTERS = 32;
 const int C2_KH = C1_FILTERS;
 const int C2_KW = 3;
@@ -58,8 +45,6 @@ const int POOL_OUT = C2_FILTERS;
 const int HIDDEN_SIZE = 16;
 const int OUTPUT_SIZE = N_CLASSES;
 
-// ── Static buffers
-// ────────────────────────────────────────────────────────────
 static float values[N_FLOATS];
 static Tensor flat(1, POOL_OUT);
 static Tensor dFlat(1, POOL_OUT);
@@ -67,9 +52,6 @@ static Tensor input(N_CHANNELS, SEQ_LEN);
 static Tensor yTrue(1, OUTPUT_SIZE);
 
 static float blendedProbs[N_CLASSES];
-
-// ── Layers
-// ────────────────────────────────────────────────────────────────────
 Conv2DLayer conv1(N_CHANNELS, SEQ_LEN, C1_FILTERS, C1_KH, C1_KW, C1_SH, C1_SW,
                   C1_PAD_H, C1_PAD_W);
 ReLU reluConv1;
@@ -88,10 +70,6 @@ static float currentLR = INITIAL_LR;
 static float total_loss = 0.0f;
 static int total_correct = 0;
 
-// ══════════════════════════════════════════════════════════════════════════════
-// Weight I/O
-// ══════════════════════════════════════════════════════════════════════════════
-
 void loadWeights() {
   memcpy(conv1.weights.data, conv1_w, conv1.weights.size * sizeof(float));
   memcpy(conv1.biases.data, conv1_b, conv1.biases.size * sizeof(float));
@@ -107,7 +85,6 @@ void exportModel() {
   Serial.println("START_EXPORT");
   Serial.println("#ifndef TRAINED_WEIGHTS_H");
   Serial.println("#define TRAINED_WEIGHTS_H\n");
-
   auto printTensor = [](const char *name, Tensor &t) {
     Serial.print("float ");
     Serial.print(name);
@@ -135,9 +112,6 @@ void exportModel() {
   Serial.println("END_EXPORT");
 }
 
-// ── Logging helpers
-// ───────────────────────────────────────────────────────────
-
 void printProbs(int labelIdx, float loss) {
   const Tensor &probs = getLoss.activation.output;
   Serial.print("Probs: ");
@@ -152,8 +126,8 @@ void printProbs(int labelIdx, float loss) {
   Serial.println(loss, 2);
 }
 
-void printBlendedProbs(int labelIdx, float loss, const float *blended) {
-  Serial.print("Ensemble: ");
+void printBlendedProbs(int labelIdx, float loss, const float *blended, int pred) {
+  Serial.print("Probs: ");
   for (int i = 0; i < OUTPUT_SIZE; i++) {
     Serial.print(blended[i], 2);
     if (i < OUTPUT_SIZE - 1)
@@ -162,11 +136,10 @@ void printBlendedProbs(int labelIdx, float loss, const float *blended) {
   Serial.print(" | Label: ");
   Serial.print(labelIdx);
   Serial.print(" | CNN_Loss: ");
-  Serial.println(loss, 2);
+  Serial.print(loss, 2);
+  Serial.print(" | Correct: ");
+  Serial.println(pred == labelIdx ? 1 : 0);
 }
-
-// ── Core window processing
-// ────────────────────────────────────────────────────
 
 void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
   for (int i = 0; i < N_FLOATS; i++)
@@ -178,12 +151,10 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
       labelIdx = i;
   }
 
-  // ── CNN forward pass ───────────────────────────────────────────────────────
   conv1.forward(input);
   reluConv1.forward(conv1.output);
   conv2.forward(reluConv1.output);
   reluConv2.forward(conv2.output);
-
   for (int c = 0; c < C2_FILTERS; c++) {
     float sum = 0.0f;
     for (int t = 0; t < C2_OUT_W; t++)
@@ -196,19 +167,14 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
   layer2.forward(relu1.output);
 
   float loss = getLoss.forward(layer2.output, yTrue);
-
-  // ── Ensemble blend ─────────────────────────────────────────────────────────
-  // Get predictions from the Random Forest (defined in tree_weights.h)
   float forestProbs[TREE_N_CLASSES];
   treeForestPredict(input.data, forestProbs);
 
-  // Blend CNN and Forest probabilities
   for (int i = 0; i < N_CLASSES; i++) {
     blendedProbs[i] = (ENSEMBLE_ALPHA * getLoss.activation.output.data[i]) +
                       ((1.0f - ENSEMBLE_ALPHA) * forestProbs[i]);
   }
 
-  // ── Backward / update (CNN only; forest is frozen) ────────────────────────
   if (!testing) {
     getLoss.backward(yTrue);
     layer2.backward(getLoss.dInputs);
@@ -253,10 +219,8 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
     }
   }
 
-  // ── Evaluation: blended ensemble decides the class ────────────────────────
   if (testing) {
     total_loss += loss;
-
     int pred = 0;
     float best_val = blendedProbs[0];
     for (int i = 1; i < N_CLASSES; i++) {
@@ -268,12 +232,9 @@ void processWindow(const float *data, const int label[N_CLASSES], int wCount) {
 
     if (pred == labelIdx)
       total_correct++;
-    printBlendedProbs(labelIdx, loss, blendedProbs);
+    printBlendedProbs(labelIdx, loss, blendedProbs, pred);
   }
 }
-
-// ── Serial I/O
-// ────────────────────────────────────────────────────────────────
 
 void get_data() {
   int received = 0;
@@ -299,9 +260,6 @@ void get_data() {
   Serial.println("TRAIN");
 }
 
-// ── Arduino entry points
-// ──────────────────────────────────────────────────────
-
 void setup() {
   Serial.begin(1000000);
   loadWeights();
@@ -319,7 +277,6 @@ void setup() {
 void loop() {
   while (Serial.available()) {
     char c = Serial.read();
-
     if (c == 'E') {
       unsigned long start = millis();
       while (!Serial.available()) {
